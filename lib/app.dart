@@ -5,6 +5,7 @@ import 'catalog/data/catalog_repository.dart';
 import 'diary/data/diary_repository.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_store.dart';
+import 'core/theme/app_theme.dart';
 import 'home/home_page.dart';
 
 class EssenzaApp extends StatefulWidget {
@@ -44,7 +45,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
     return MaterialApp(
       title: 'Essenza',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF7B4B8A)), useMaterial3: true),
+      theme: EssenzaTheme.light(),
       home: _loading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : _authenticated

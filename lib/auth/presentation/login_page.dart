@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
+import '../../core/theme/app_theme.dart';
 import '../data/auth_repository.dart';
 
 class LoginPage extends StatefulWidget {
@@ -38,7 +39,15 @@ class _LoginPageState extends State<LoginPage> {
     body: SafeArea(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 420), child: Form(
       key: _formKey,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Icon(Icons.local_florist, size: 64), const SizedBox(height: 16),
+        Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: EssenzaColors.ocean.withValues(alpha: 0.18),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.local_florist, size: 48, color: EssenzaColors.deepOcean),
+        ), const SizedBox(height: 16),
         Text('Essenza', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineLarge),
         Text(_register ? 'Crie sua conta' : 'Entre na sua conta', textAlign: TextAlign.center), const SizedBox(height: 32),
         if (_register) TextFormField(controller: _name, decoration: const InputDecoration(labelText: 'Nome', border: OutlineInputBorder()), validator: (v) => v == null || v.trim().isEmpty ? 'Informe seu nome' : null),
