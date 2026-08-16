@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../catalog/data/catalog_repository.dart';
 import '../catalog/models/perfume.dart';
+import '../catalog/presentation/catalog_labels.dart';
 import '../core/theme/app_theme.dart';
 import '../diary/data/diary_repository.dart';
 import '../diary/presentation/diary_page.dart';
@@ -424,7 +425,10 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
                 children: [
                   if (perfume.rating != null) _InfoChip(icon: Icons.star_outline, text: '${perfume.rating}'),
                   if (perfume.releaseYear != null) _InfoChip(icon: Icons.calendar_today_outlined, text: '${perfume.releaseYear}'),
-                  if (perfume.gender != null) _InfoChip(icon: Icons.person_outline, text: perfume.gender!),
+                  if (perfume.gender != null) _InfoChip(icon: Icons.person_outline, text: perfumeLabel(perfume.gender)),
+                  if (perfume.oilType != null) _InfoChip(icon: Icons.water_drop_outlined, text: perfumeLabel(perfume.oilType)),
+                  if (perfume.longevity != null) _InfoChip(icon: Icons.timer_outlined, text: 'Duração: ${perfumeLabel(perfume.longevity)}'),
+                  if (perfume.sillage != null) _InfoChip(icon: Icons.air, text: 'Projeção: ${perfumeLabel(perfume.sillage)}'),
                 ],
               ),
               if (perfume.notes.isNotEmpty)
@@ -435,7 +439,7 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
               if (perfume.notes.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Text(perfume.notes.join('  •  ')),
+                  child: Text(perfume.notes.map(perfumeLabel).join('  •  ')),
                 ),
               const SizedBox(height: 28),
               FilledButton.icon(
