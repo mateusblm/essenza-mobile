@@ -25,7 +25,7 @@ abstract final class EssenzaTheme {
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: EssenzaColors.softBackground,
+      scaffoldBackgroundColor: Colors.white,
       fontFamily: 'sans-serif',
       textTheme: textTheme.copyWith(
         headlineLarge: textTheme.headlineLarge?.copyWith(
