@@ -24,10 +24,22 @@ class Perfume {
     longevity: json['longevity'] as String?, sillage: json['sillage'] as String?,
     notes: (json['notes'] as List<dynamic>? ?? []).map((e) => e is Map<String, dynamic> ? e['name'] as String : e.toString()).toList(),
     mainAccords: (json['mainAccords'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
-    mainAccordsPercentage: ((json['mainAccordsPercentage'] as Map<String, dynamic>?) ?? {}).map((key, value) => MapEntry(key, double.tryParse(value.toString().replaceAll('%', '')) ?? 0)),
+    mainAccordsPercentage: ((json['mainAccordsPercentage'] as Map<String, dynamic>?) ?? {}).map((key, value) => MapEntry(key, _parseAccordWeight(value))),
     seasonRanking: (json['seasonRanking'] as List<dynamic>? ?? []).map((e) => PerfumeRanking.fromJson(e as Map<String, dynamic>)).toList(),
     occasionRanking: (json['occasionRanking'] as List<dynamic>? ?? []).map((e) => PerfumeRanking.fromJson(e as Map<String, dynamic>)).toList(),
   );
+}
+
+double _parseAccordWeight(Object? value) {
+  final numeric = double.tryParse(value.toString().replaceAll('%', '').replaceAll(',', '.'));
+  if (numeric != null) return numeric > 1 ? numeric / 100 : numeric;
+  return switch (value.toString().toLowerCase()) {
+    'dominant' => 1.0,
+    'prominent' => 0.75,
+    'moderate' => 0.5,
+    'minor' || 'slight' => 0.25,
+    _ => 0.0,
+  };
 }
 
 class PerfumeRanking {

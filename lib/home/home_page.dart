@@ -488,7 +488,8 @@ class _CollectionProfile extends StatelessWidget {
       final rankings = selector(perfume);
       if (rankings.isEmpty) continue;
       perfumeCount++;
-      final scale = rankings.any((item) => item.score > 1) ? 100 : 1;
+      final scale = rankings.map((item) => item.score).fold(0.0, math.max);
+      if (scale == 0) continue;
       for (final ranking in rankings) {
         final key = ranking.name.toLowerCase();
         totals[key] = (totals[key] ?? 0) + ranking.score / scale;
