@@ -285,7 +285,11 @@ class _CollectionViewState extends State<CollectionView> {
           );
         }
         return RefreshIndicator(
-          onRefresh: () async => setState(() => _future = widget.repository.collection()),
+          onRefresh: () {
+            final future = widget.repository.collection();
+            setState(() => _future = future);
+            return future.then((_) {});
+          },
           child: ListView(
             padding: const EdgeInsets.only(top: 12, bottom: 20),
             children: [
