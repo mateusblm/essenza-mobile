@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../catalog/data/catalog_repository.dart';
@@ -287,9 +288,11 @@ class _CollectionViewState extends State<CollectionView> {
           onRefresh: () async => setState(() => _future = widget.repository.collection()),
           child: ListView(
             padding: const EdgeInsets.only(top: 12, bottom: 20),
-            children: items
-                .map(
-                  (perfume) => PerfumeTile(
+            children: [
+              _CollectionProfile(perfumes: items),
+              const SizedBox(height: 12),
+              ...items.map(
+                (perfume) => PerfumeTile(
                     perfume: perfume,
                     onTap: () => Navigator.push(
                       context,
@@ -333,14 +336,174 @@ class _CollectionViewState extends State<CollectionView> {
                         ),
                       ],
                     ),
-                  ),
-                )
-                .toList(),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
+}
+
+class _CollectionProfile extends StatelessWidget {
+  final List<Perfume> perfumes;
+
+  const _CollectionProfile({required this.perfumes});
+
+  @override
+  Widget build(BuildContext context) {
+    final families = <String, double>{
+      'Fresco': _score(['citrus', 'fresh', 'aquatic', 'green', 'aromatic']),
+      'Floral': _score(['floral', 'rose', 'jasmine', 'iris', 'white flowers']),
+      'Amadeirado': _score(['woody', 'wood', 'sandalwood', 'cedar', 'oud']),
+      'Doce': _score(['sweet', 'vanilla', 'caramel', 'honey', 'chocolate']),
+      'Oriental': _score(['amber', 'warm spicy', 'spicy', 'balsamic', 'resin']),
+      'Frutado': _score(['fruity', 'apple', 'citrus', 'peach', 'pear']),
+    };
+    final sortedFamilies = families.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final climate = <String, double>{
+      'Calor': _score(['citrus', 'fresh', 'aquatic', 'green']),
+      'Ameno': _score(['floral', 'aromatic', 'fruity', 'woody']),
+      'Frio': _score(['vanilla', 'amber', 'sweet', 'spicy', 'woody']),
+    };
+    final occasions = <String>[
+      if (families['Fresco']! >= families['Doce']!) 'Dia',
+      if (families['Doce']! >= 0.25 || families['Oriental']! >= 0.25) 'Noite',
+      if (families['Floral']! >= 0.25) 'Encontros',
+      if (families['Amadeirado']! >= 0.25) 'Trabalho',
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.insights, color: EssenzaColors.deepOcean),
+                const SizedBox(width: 8),
+                Text('Seu perfil olfativo', style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text('Uma leitura visual dos perfumes que você escolheu.'),
+            const SizedBox(height: 18),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 150,
+                  height: 150,
+                  child: CustomPaint(
+                    painter: _RadarPainter(
+                      values: families.values.toList(),
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: sortedFamilies.take(3).map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text('${item.key}  ${(item.value * 100).round()}%', overflow: TextOverflow.ellipsis),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('Climas que combinam com sua coleção', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 10),
+            ...climate.entries.map((item) => _ProfileBar(label: item.key, value: item.value)),
+            const SizedBox(height: 8),
+            if (occasions.isNotEmpty) ...[
+              Text('Momentos prováveis', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Wrap(spacing: 8, runSpacing: 8, children: occasions.map((item) => Chip(label: Text(item))).toList()),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  double _score(List<String> terms) {
+    if (perfumes.isEmpty) return 0;
+    var matches = 0;
+    for (final perfume in perfumes) {
+      final values = [...perfume.notes, ...perfume.mainAccords].join(' ').toLowerCase();
+      if (terms.any(values.contains)) matches++;
+    }
+    return matches / perfumes.length;
+  }
+}
+
+class _ProfileBar extends StatelessWidget {
+  final String label;
+  final double value;
+
+  const _ProfileBar({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: Row(
+          children: [
+            SizedBox(width: 52, child: Text(label)),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: LinearProgressIndicator(value: value.clamp(0, 1), minHeight: 9),
+              ),
+            ),
+            SizedBox(width: 42, child: Text(' ${(value * 100).round()}%', textAlign: TextAlign.end)),
+          ],
+        ),
+      );
+}
+
+class _RadarPainter extends CustomPainter {
+  final List<double> values;
+  final Color color;
+
+  const _RadarPainter({required this.values, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.shortestSide / 2 - 8;
+    final grid = Paint()..style = PaintingStyle.stroke..color = color.withValues(alpha: 0.22);
+    final fill = Paint()..style = PaintingStyle.fill..color = color.withValues(alpha: 0.28);
+    final outline = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = color;
+    final points = <Offset>[];
+    final count = values.length;
+    for (var i = 0; i < count; i++) {
+      final angle = -math.pi / 2 + (2 * math.pi * i / count);
+      points.add(center + Offset(math.cos(angle), math.sin(angle)) * radius);
+    }
+    final gridPath = Path()..addPolygon(points, true);
+    canvas.drawPath(gridPath, grid);
+    for (var i = 0; i < count; i++) {
+      canvas.drawLine(center, points[i], grid);
+    }
+    final valuePoints = <Offset>[];
+    for (var i = 0; i < count; i++) {
+      final angle = -math.pi / 2 + (2 * math.pi * i / count);
+      valuePoints.add(center + Offset(math.cos(angle), math.sin(angle)) * radius * values[i].clamp(0.08, 1));
+    }
+    final valuePath = Path()..addPolygon(valuePoints, true);
+    canvas.drawPath(valuePath, fill);
+    canvas.drawPath(valuePath, outline);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadarPainter oldDelegate) => oldDelegate.values != values || oldDelegate.color != color;
 }
 
 class PerfumeTile extends StatelessWidget {
