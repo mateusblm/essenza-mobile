@@ -1,0 +1,56 @@
+name: Distribute Android test build
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Android APK
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          BUILD_NAME="${GITHUB_REF_NAME#v}"
+          flutter build apk --release \
+            --build-name "$BUILD_NAME" \
+            --build-number "$GITHUB_RUN_NUMBER" \
+            --dart-define="API_BASE_URL=$API_BASE_URL"
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools
+
+      - name: Distribute to Firebase App Tester
+        env:
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_TESTER_GROUP: ${{ secrets.FIREBASE_TESTER_GROUP }}
+        run: |
+          firebase appdistribution:distribute build/app/outputs/flutter-apk/app-release.apk \
+            --app "$FIREBASE_APP_ID" \
+            --token "$FIREBASE_TOKEN" \
+            --groups "$FIREBASE_TESTER_GROUP" \
+            --release-notes "Release $GITHUB_REF_NAME - commit $GITHUB_SHA"

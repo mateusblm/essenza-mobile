@@ -2,6 +2,12 @@
 
 Frontend Flutter do Essenza.
 
+## Distribuir uma versão para testers
+
+O workflow `.github/workflows/firebase-distribution.yml` publica uma nova versão no Firebase App Distribution quando uma tag `v*` é enviada para o GitHub.
+
+Consulte [docs/firebase-distribution.md](docs/firebase-distribution.md) para configurar o Firebase, os secrets e publicar a primeira versão.
+
 ## Executar
 
 Com o backend rodando em Docker e usando o emulador Android:
