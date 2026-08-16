@@ -44,30 +44,37 @@ class _DiaryPageState extends State<DiaryPage> {
 
         final entries = snapshot.data ?? <DiaryEntry>[];
         if (entries.isEmpty) {
-          return const Center(child: Text('Registre seu primeiro uso de perfume.'));
+          return const _DiaryEmptyState();
         }
 
         return RefreshIndicator(
           onRefresh: () async => _reload(),
-          child: ListView.builder(
-            itemCount: entries.length,
-            itemBuilder: (context, index) {
-              final entry = entries[index];
-              final rating = entry.rating == null ? '' : ' • ${'★' * entry.rating!}';
-              return ListTile(
-                leading: const Icon(Icons.history),
-                title: Text(entry.perfumeName),
-                subtitle: Text(
-                  '${entry.brand ?? 'Marca não informada'} • ${_date(entry.usedAt)}$rating',
-                ),
-                trailing: IconButton(
-                  icon: _deletingId == entry.id
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.delete_outline),
-                  onPressed: _deletingId == entry.id ? null : () => _deleteEntry(entry, entries),
-                ),
-              );
-            },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            children: [
+              _DiaryInsights(entries: entries),
+              const SizedBox(height: 16),
+              Text('Suas experiências', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              ...entries.map((entry) {
+                final rating = entry.rating == null ? '' : ' - ${'★' * entry.rating!}';
+                return Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.history),
+                    title: Text(entry.perfumeName),
+                    subtitle: Text(
+                      '${entry.brand ?? 'Marca não informada'} - ${_date(entry.usedAt)}$rating',
+                    ),
+                    trailing: IconButton(
+                      icon: _deletingId == entry.id
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.delete_outline),
+                      onPressed: _deletingId == entry.id ? null : () => _deleteEntry(entry, entries),
+                    ),
+                  ),
+                );
+              }),
+            ],
           ),
         );
       },
@@ -106,6 +113,96 @@ class _DiaryPageState extends State<DiaryPage> {
 
   String _date(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
       '${date.month.toString().padLeft(2, '0')}/${date.year}';
+}
+
+class _DiaryInsights extends StatelessWidget {
+  final List<DiaryEntry> entries;
+
+  const _DiaryInsights({required this.entries});
+
+  @override
+  Widget build(BuildContext context) {
+    final rated = entries.where((entry) => entry.rating != null).toList();
+    final average = rated.isEmpty
+        ? null
+        : rated.map((entry) => entry.rating!).reduce((a, b) => a + b) / rated.length;
+    final favoriteOccasion = _mostCommon(entries.map((entry) => entry.occasion));
+    final mostUsed = _mostCommon(entries.map((entry) => entry.perfumeName));
+
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Seu perfil em construção', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            const Text('Quanto mais você registra, melhores ficam suas descobertas.'),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                _InsightValue(label: 'Usos', value: '${entries.length}'),
+                _InsightValue(label: 'Média', value: average == null ? '-' : average.toStringAsFixed(1)),
+                _InsightValue(label: 'Mais usado', value: mostUsed ?? '-'),
+              ],
+            ),
+            if (favoriteOccasion != null) ...[
+              const SizedBox(height: 12),
+              Text('Ocasião mais registrada: ${_capitalize(favoriteOccasion)}'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String? _mostCommon(Iterable<String?> values) {
+    final counts = <String, int>{};
+    for (final value in values) {
+      if (value != null && value.isNotEmpty) counts[value] = (counts[value] ?? 0) + 1;
+    }
+    if (counts.isEmpty) return null;
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  }
+
+  String _capitalize(String value) => value[0].toUpperCase() + value.substring(1);
+}
+
+class _InsightValue extends Expanded {
+  _InsightValue({required String label, required String value})
+      : super(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(label),
+            ],
+          ),
+        );
+}
+
+class _DiaryEmptyState extends StatelessWidget {
+  const _DiaryEmptyState();
+
+  @override
+  Widget build(BuildContext context) => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.auto_awesome, size: 52),
+              SizedBox(height: 16),
+              Text('Seu diário vai aprender com você', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              SizedBox(height: 8),
+              Text('Registre como cada perfume se comporta na sua pele para criar seu perfil olfativo.', textAlign: TextAlign.center),
+              SizedBox(height: 16),
+              Text('Abra um perfume da sua coleção e toque em Registrar uso.', textAlign: TextAlign.center),
+            ],
+          ),
+        ),
+      );
 }
 
 class DiaryFormPage extends StatefulWidget {

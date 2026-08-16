@@ -45,7 +45,7 @@ class _HomePageState extends State<HomePage> {
             repository: widget.repository,
             diaryRepository: widget.diaryRepository,
           ),
-        1 => CollectionView(repository: widget.repository),
+        1 => CollectionView(repository: widget.repository, diaryRepository: widget.diaryRepository),
         _ => DiaryPage(repository: widget.diaryRepository),
       },
       bottomNavigationBar: NavigationBar(
@@ -242,8 +242,9 @@ class _SearchViewState extends State<SearchView> {
 
 class CollectionView extends StatefulWidget {
   final CatalogRepository repository;
+  final DiaryRepository diaryRepository;
 
-  const CollectionView({super.key, required this.repository});
+  const CollectionView({super.key, required this.repository, required this.diaryRepository});
 
   @override
   State<CollectionView> createState() => _CollectionViewState();
@@ -290,12 +291,47 @@ class _CollectionViewState extends State<CollectionView> {
                 .map(
                   (perfume) => PerfumeTile(
                     perfume: perfume,
-                    trailing: IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
-                      onPressed: () async {
-                        await widget.repository.removeFromCollection(perfume.externalId);
-                        if (mounted) setState(() => _future = widget.repository.collection());
-                      },
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PerfumeDetailsPage(
+                          repository: widget.repository,
+                          diaryRepository: widget.diaryRepository,
+                          perfume: perfume,
+                        ),
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Registrar uso',
+                          icon: const Icon(Icons.history),
+                          onPressed: () async {
+                            final saved = await Navigator.push<bool>(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DiaryFormPage(
+                                  repository: widget.diaryRepository,
+                                  perfume: perfume,
+                                ),
+                              ),
+                            );
+                            if (saved != true || !context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Experiencia registrada.')),
+                            );
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'Remover da colecao',
+                          icon: const Icon(Icons.remove_circle_outline),
+                          onPressed: () async {
+                            await widget.repository.removeFromCollection(perfume.externalId);
+                            if (mounted) setState(() => _future = widget.repository.collection());
+                          },
+                        ),
+                      ],
                     ),
                   ),
                 )
