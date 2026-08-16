@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'auth/data/auth_repository.dart';
 import 'auth/presentation/login_page.dart';
 import 'catalog/data/catalog_repository.dart';
+import 'diary/data/diary_repository.dart';
 import 'core/network/api_client.dart';
 import 'core/storage/token_store.dart';
 import 'home/home_page.dart';
@@ -15,6 +16,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
   late final TokenStore _store;
   late final AuthRepository _auth;
   late final CatalogRepository _catalog;
+  late final DiaryRepository _diary;
   bool _loading = true;
   bool _authenticated = false;
 
@@ -25,6 +27,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
     final api = ApiClient(tokenStore: _store);
     _auth = AuthRepository(api, _store);
     _catalog = CatalogRepository(api);
+    _diary = DiaryRepository(api);
     _restoreSession();
   }
 
@@ -45,7 +48,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
       home: _loading
           ? const Scaffold(body: Center(child: CircularProgressIndicator()))
           : _authenticated
-              ? HomePage(repository: _catalog, onLogout: _logout)
+              ? HomePage(repository: _catalog, diaryRepository: _diary, onLogout: _logout)
               : LoginPage(repository: _auth, onAuthenticated: _onAuthenticated),
     );
   }

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import '../catalog/data/catalog_repository.dart';
 import '../catalog/models/perfume.dart';
+import '../diary/data/diary_repository.dart';
+import '../diary/presentation/diary_page.dart';
 
 class HomePage extends StatefulWidget {
   final CatalogRepository repository;
+  final DiaryRepository diaryRepository;
   final Future<void> Function() onLogout;
-  const HomePage({super.key, required this.repository, required this.onLogout});
+  const HomePage({super.key, required this.repository, required this.diaryRepository, required this.onLogout});
   @override State<HomePage> createState() => _HomePageState();
 }
 
@@ -13,14 +16,15 @@ class _HomePageState extends State<HomePage> {
   int _tab = 0;
   @override Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Essenza'), actions: [IconButton(onPressed: widget.onLogout, icon: const Icon(Icons.logout), tooltip: 'Sair')]),
-    body: _tab == 0 ? SearchView(repository: widget.repository) : CollectionView(repository: widget.repository),
-    bottomNavigationBar: NavigationBar(selectedIndex: _tab, onDestinationSelected: (value) => setState(() => _tab = value), destinations: const [NavigationDestination(icon: Icon(Icons.search), label: 'Explorar'), NavigationDestination(icon: Icon(Icons.favorite_outline), label: 'Coleção')]),
+    body: _tab == 0 ? SearchView(repository: widget.repository, diaryRepository: widget.diaryRepository) : _tab == 1 ? CollectionView(repository: widget.repository) : DiaryPage(repository: widget.diaryRepository),
+    bottomNavigationBar: NavigationBar(selectedIndex: _tab, onDestinationSelected: (value) => setState(() => _tab = value), destinations: const [NavigationDestination(icon: Icon(Icons.search), label: 'Explorar'), NavigationDestination(icon: Icon(Icons.favorite_outline), label: 'Coleção'), NavigationDestination(icon: Icon(Icons.history), label: 'Diário')]),
   );
 }
 
 class SearchView extends StatefulWidget {
   final CatalogRepository repository;
-  const SearchView({super.key, required this.repository});
+  final DiaryRepository diaryRepository;
+  const SearchView({super.key, required this.repository, required this.diaryRepository});
   @override State<SearchView> createState() => _SearchViewState();
 }
 
@@ -44,7 +48,7 @@ class _SearchViewState extends State<SearchView> {
     if (_error != null) Padding(padding: const EdgeInsets.only(top: 12), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
     if (_loading) const Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator()),
     if (!_loading && _result != null && _result!.items.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('Nenhum perfume encontrado.')),
-    if (!_loading && _result != null) Expanded(child: ListView.builder(itemCount: _result!.items.length, itemBuilder: (_, index) => PerfumeTile(perfume: _result!.items[index], onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PerfumeDetailsPage(repository: widget.repository, perfume: _result!.items[index])))))),
+    if (!_loading && _result != null) Expanded(child: ListView.builder(itemCount: _result!.items.length, itemBuilder: (_, index) => PerfumeTile(perfume: _result!.items[index], onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PerfumeDetailsPage(repository: widget.repository, diaryRepository: widget.diaryRepository, perfume: _result!.items[index])))))),
   ]));
 }
 
@@ -76,8 +80,9 @@ class PerfumeTile extends StatelessWidget {
 
 class PerfumeDetailsPage extends StatefulWidget {
   final CatalogRepository repository;
+  final DiaryRepository diaryRepository;
   final Perfume perfume;
-  const PerfumeDetailsPage({super.key, required this.repository, required this.perfume});
+  const PerfumeDetailsPage({super.key, required this.repository, required this.diaryRepository, required this.perfume});
   @override State<PerfumeDetailsPage> createState() => _PerfumeDetailsPageState();
 }
 
@@ -89,7 +94,7 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
   @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: Text(widget.perfume.name)), body: FutureBuilder<Perfume>(future: _future, builder: (context, snapshot) {
     if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
     final perfume = snapshot.data ?? widget.perfume;
-    return ListView(padding: const EdgeInsets.all(20), children: [_PerfumeImage(url: perfume.imageUrl, size: 220), const SizedBox(height: 20), Text(perfume.name, style: Theme.of(context).textTheme.headlineSmall), Text(perfume.brand ?? 'Marca não informada'), if (perfume.rating != null) Text('Avaliação: ${perfume.rating}'), if (perfume.releaseYear != null) Text('Ano: ${perfume.releaseYear}'), if (perfume.notes.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 16), child: Text('Notas: ${perfume.notes.join(', ')}')), const SizedBox(height: 24), FilledButton.icon(onPressed: _saving ? null : () => _add(perfume), icon: const Icon(Icons.favorite), label: Text(_saving ? 'Salvando...' : 'Adicionar à coleção'))]);
+    return ListView(padding: const EdgeInsets.all(20), children: [_PerfumeImage(url: perfume.imageUrl, size: 220), const SizedBox(height: 20), Text(perfume.name, style: Theme.of(context).textTheme.headlineSmall), Text(perfume.brand ?? 'Marca não informada'), if (perfume.rating != null) Text('Avaliação: ${perfume.rating}'), if (perfume.releaseYear != null) Text('Ano: ${perfume.releaseYear}'), if (perfume.notes.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 16), child: Text('Notas: ${perfume.notes.join(', ')}')), const SizedBox(height: 24), FilledButton.icon(onPressed: _saving ? null : () => _add(perfume), icon: const Icon(Icons.favorite), label: Text(_saving ? 'Salvando...' : 'Adicionar à coleção')), const SizedBox(height: 12), OutlinedButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DiaryFormPage(repository: widget.diaryRepository, perfume: perfume)),), icon: const Icon(Icons.history), label: const Text('Registrar uso'))]);
   }));
 }
 
