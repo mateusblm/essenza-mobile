@@ -28,4 +28,22 @@ void main() {
     final entries = await DiaryRepository(ApiClient(httpClient: client, tokenStore: DiaryMemoryStore(), baseUrl: 'http://test')).list();
     expect(entries.single.perfumeExternalId, 'p1');
   });
+
+  test('deletes a diary entry through the authenticated endpoint', () async {
+    final client = DiaryMockHttpClient();
+    when(() => client.delete(any(), headers: any(named: 'headers')))
+        .thenAnswer((_) async => http.Response('', 204));
+    final repo = DiaryRepository(ApiClient(
+      httpClient: client,
+      tokenStore: DiaryMemoryStore(),
+      baseUrl: 'http://test',
+    ));
+
+    await repo.delete(7);
+
+    verify(() => client.delete(
+          Uri.parse('http://test/diary/7'),
+          headers: any(named: 'headers'),
+        )).called(1);
+  });
 }
