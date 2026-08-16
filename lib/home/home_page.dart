@@ -307,11 +307,26 @@ class PerfumeDetailsPage extends StatefulWidget {
 class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
   late Future<Perfume> _future;
   bool _saving = false;
+  bool _inCollection = false;
 
   @override
   void initState() {
     super.initState();
     _future = widget.repository.details(widget.perfume.externalId);
+    _loadCollectionState();
+  }
+
+  Future<void> _loadCollectionState() async {
+    try {
+      final collection = await widget.repository.collection();
+      if (mounted) {
+        setState(() => _inCollection = collection.any(
+              (item) => item.externalId == widget.perfume.externalId,
+            ));
+      }
+    } catch (_) {
+      // A falha ao carregar a coleção não impede a consulta dos detalhes.
+    }
   }
 
   Future<void> _add(Perfume perfume) async {
@@ -319,6 +334,7 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
     try {
       await widget.repository.addToCollection(perfume.externalId);
       if (mounted) {
+        setState(() => _inCollection = true);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Adicionado à coleção.')),
         );
@@ -380,9 +396,15 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
                 ),
               const SizedBox(height: 28),
               FilledButton.icon(
-                onPressed: _saving ? null : () => _add(perfume),
-                icon: const Icon(Icons.favorite),
-                label: Text(_saving ? 'Salvando...' : 'Adicionar à coleção'),
+                onPressed: _saving || _inCollection ? null : () => _add(perfume),
+                icon: Icon(_inCollection ? Icons.check : Icons.favorite),
+                label: Text(
+                  _saving
+                      ? 'Salvando...'
+                      : _inCollection
+                          ? 'Na coleção'
+                          : 'Adicionar à coleção',
+                ),
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
