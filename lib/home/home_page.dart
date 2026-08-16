@@ -374,9 +374,10 @@ class _CollectionProfile extends StatelessWidget {
     final occasionRanking = _rankingValues((perfume) => perfume.occasionRanking);
     final occasions = <String>[
       if ((occasionRanking['day'] ?? occasionRanking['dia'] ?? 0) >= 0.25) 'Dia',
-      if ((occasionRanking['night'] ?? occasionRanking['noite'] ?? 0) >= 0.25) 'Noite',
+      if ((occasionRanking['casual'] ?? 0) >= 0.25) 'Casual',
+      if ((occasionRanking['night'] ?? occasionRanking['noite'] ?? occasionRanking['night out'] ?? 0) >= 0.25) 'Noite',
       if ((occasionRanking['date'] ?? occasionRanking['encontro'] ?? 0) >= 0.25) 'Encontros',
-      if ((occasionRanking['work'] ?? occasionRanking['trabalho'] ?? occasionRanking['office'] ?? 0) >= 0.25) 'Trabalho',
+      if ((occasionRanking['work'] ?? occasionRanking['trabalho'] ?? occasionRanking['office'] ?? occasionRanking['professional'] ?? 0) >= 0.25) 'Trabalho',
       if (occasionRanking.isEmpty && families['Fresco']! >= families['Doce']!) 'Dia',
       if (occasionRanking.isEmpty && (families['Doce']! >= 0.25 || families['Oriental']! >= 0.25)) 'Noite',
     ];
