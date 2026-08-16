@@ -1,6 +1,18 @@
-# essenza_mobile
+# Essenza Mobile
 
-A new Flutter project.
+Frontend Flutter do Essenza.
+
+## Executar
+
+Com o backend rodando em Docker e usando o emulador Android:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8080/api/v1
+```
+
+Em um celular físico, substitua `10.0.2.2` pelo IP local do computador.
+
+O backend precisa estar disponível em `http://localhost:8080` e o primeiro fluxo implementado é cadastro/login com JWT.
 
 ## Getting Started
 
