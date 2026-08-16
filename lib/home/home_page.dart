@@ -435,12 +435,17 @@ class _CollectionProfile extends StatelessWidget {
 
   double _score(List<String> terms) {
     if (perfumes.isEmpty) return 0;
-    var matches = 0;
+    var totalElements = 0;
+    var matchingElements = 0;
     for (final perfume in perfumes) {
-      final values = [...perfume.notes, ...perfume.mainAccords].join(' ').toLowerCase();
-      if (terms.any(values.contains)) matches++;
+      final values = {...perfume.notes, ...perfume.mainAccords}
+          .map((value) => value.trim().toLowerCase())
+          .where((value) => value.isNotEmpty)
+          .toList();
+      totalElements += values.length;
+      matchingElements += values.where((value) => terms.any(value.contains)).length;
     }
-    return matches / perfumes.length;
+    return totalElements == 0 ? 0 : matchingElements / totalElements;
   }
 }
 
