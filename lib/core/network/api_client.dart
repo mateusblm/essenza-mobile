@@ -19,27 +19,31 @@ class ApiClient {
 
   Future<Map<String, dynamic>> post(String path, Map<String, dynamic> body) async {
     final response = await httpClient.post(Uri.parse('$baseUrl$path'), headers: await _headers(), body: jsonEncode(body));
-    return _decode(response);
+    return _decode(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> get(String path) async {
+  Future<Map<String, dynamic>> get(String path) async => (await getJson(path)) as Map<String, dynamic>;
+
+  Future<dynamic> getJson(String path) async {
     final response = await httpClient.get(Uri.parse('$baseUrl$path'), headers: await _headers());
     return _decode(response);
   }
 
-  Future<Map<String, String>> _headers() async {
-    final token = await tokenStore.read();
-    return {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+  Future<void> delete(String path) async {
+    final response = await httpClient.delete(Uri.parse('$baseUrl$path'), headers: await _headers());
+    _decode(response);
   }
 
-  Map<String, dynamic> _decode(http.Response response) {
-    final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
+  Future<Map<String, String>> _headers() async {
+    final token = await tokenStore.read();
+    return {'Content-Type': 'application/json', 'Accept': 'application/json', if (token != null) 'Authorization': 'Bearer $token'};
+  }
+
+  dynamic _decode(http.Response response) {
+    final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw ApiException(response.statusCode, decoded['detail'] as String? ?? decoded['message'] as String? ?? 'Não foi possível concluir a operação.');
+      final body = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      throw ApiException(response.statusCode, body['detail'] as String? ?? body['message'] as String? ?? 'Não foi possível concluir a operação.');
     }
     return decoded;
   }
