@@ -15,6 +15,7 @@ class DiaryPage extends StatefulWidget {
 
 class _DiaryPageState extends State<DiaryPage> {
   late Future<List<DiaryEntry>> _future;
+  int? _deletingId;
 
   @override
   void initState() {
@@ -60,11 +61,10 @@ class _DiaryPageState extends State<DiaryPage> {
                   '${entry.brand ?? 'Marca não informada'} • ${_date(entry.usedAt)}$rating',
                 ),
                 trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () async {
-                    await widget.repository.delete(entry.id);
-                    if (mounted) _reload();
-                  },
+                  icon: _deletingId == entry.id
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.delete_outline),
+                  onPressed: _deletingId == entry.id ? null : () => _deleteEntry(entry, entries),
                 ),
               );
             },
@@ -72,6 +72,36 @@ class _DiaryPageState extends State<DiaryPage> {
         );
       },
     );
+  }
+
+  Future<void> _deleteEntry(DiaryEntry entry, List<DiaryEntry> entries) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Excluir registro?'),
+        content: Text('O registro de ${entry.perfumeName} será removido do seu diário.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Excluir')),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingId = entry.id);
+    try {
+      await widget.repository.delete(entry.id);
+      if (mounted) {
+        setState(() => _future = Future.value(entries.where((item) => item.id != entry.id).toList()));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Registro excluído.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível excluir o registro.')));
+      }
+    } finally {
+      if (mounted) setState(() => _deletingId = null);
+    }
   }
 
   String _date(DateTime date) => '${date.day.toString().padLeft(2, '0')}/'
