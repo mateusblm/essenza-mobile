@@ -363,15 +363,18 @@ class _CollectionProfile extends StatelessWidget {
     };
     final sortedFamilies = families.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     final climate = <String, double>{
-      'Calor': _score(['citrus', 'fresh', 'aquatic', 'green']),
-      'Ameno': _score(['floral', 'aromatic', 'fruity', 'woody']),
-      'Frio': _score(['vanilla', 'amber', 'sweet', 'spicy', 'woody']),
+      'Calor': _seasonScore(['summer', 'verão', 'summer heat']),
+      'Ameno': _seasonScore(['spring', 'primavera', 'autumn', 'outono']),
+      'Frio': _seasonScore(['winter', 'inverno']),
     };
+    final occasionRanking = _rankingValues((perfume) => perfume.occasionRanking);
     final occasions = <String>[
-      if (families['Fresco']! >= families['Doce']!) 'Dia',
-      if (families['Doce']! >= 0.25 || families['Oriental']! >= 0.25) 'Noite',
-      if (families['Floral']! >= 0.25) 'Encontros',
-      if (families['Amadeirado']! >= 0.25) 'Trabalho',
+      if ((occasionRanking['day'] ?? occasionRanking['dia'] ?? 0) >= 0.25) 'Dia',
+      if ((occasionRanking['night'] ?? occasionRanking['noite'] ?? 0) >= 0.25) 'Noite',
+      if ((occasionRanking['date'] ?? occasionRanking['encontro'] ?? 0) >= 0.25) 'Encontros',
+      if ((occasionRanking['work'] ?? occasionRanking['trabalho'] ?? occasionRanking['office'] ?? 0) >= 0.25) 'Trabalho',
+      if (occasionRanking.isEmpty && families['Fresco']! >= families['Doce']!) 'Dia',
+      if (occasionRanking.isEmpty && (families['Doce']! >= 0.25 || families['Oriental']! >= 0.25)) 'Noite',
     ];
 
     return Card(
@@ -435,6 +438,8 @@ class _CollectionProfile extends StatelessWidget {
 
   double _score(List<String> terms) {
     if (perfumes.isEmpty) return 0;
+    final weighted = _weightedAccordScore(terms);
+    if (weighted != null) return weighted;
     var totalElements = 0;
     var matchingElements = 0;
     for (final perfume in perfumes) {
@@ -446,6 +451,47 @@ class _CollectionProfile extends StatelessWidget {
       matchingElements += values.where((value) => terms.any(value.contains)).length;
     }
     return totalElements == 0 ? 0 : matchingElements / totalElements;
+  }
+
+  double? _weightedAccordScore(List<String> terms) {
+    final withWeights = perfumes.where((perfume) => perfume.mainAccordsPercentage.isNotEmpty).toList();
+    if (withWeights.isEmpty) return null;
+    var total = 0.0;
+    var matching = 0.0;
+    for (final perfume in withWeights) {
+      final values = perfume.mainAccordsPercentage;
+      final scale = values.values.any((value) => value > 1) ? 100 : 1;
+      total += values.values.fold(0.0, (sum, value) => sum + value / scale);
+      matching += values.entries
+          .where((entry) => terms.any(entry.key.toLowerCase().contains))
+          .fold(0.0, (sum, entry) => sum + entry.value / scale);
+    }
+    return total == 0 ? 0 : matching / total;
+  }
+
+  double _seasonScore(List<String> terms) {
+    final values = _rankingValues((perfume) => perfume.seasonRanking);
+    if (values.isEmpty) return _score(terms);
+    return values.entries
+        .where((entry) => terms.any((term) => entry.key.contains(term)))
+        .fold(0.0, (sum, entry) => sum + entry.value);
+  }
+
+  Map<String, double> _rankingValues(List<PerfumeRanking> Function(Perfume) selector) {
+    final totals = <String, double>{};
+    var perfumeCount = 0;
+    for (final perfume in perfumes) {
+      final rankings = selector(perfume);
+      if (rankings.isEmpty) continue;
+      perfumeCount++;
+      final scale = rankings.any((item) => item.score > 1) ? 100 : 1;
+      for (final ranking in rankings) {
+        final key = ranking.name.toLowerCase();
+        totals[key] = (totals[key] ?? 0) + ranking.score / scale;
+      }
+    }
+    if (perfumeCount == 0) return {};
+    return totals.map((key, value) => MapEntry(key, value / perfumeCount));
   }
 }
 

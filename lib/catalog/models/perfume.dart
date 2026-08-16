@@ -11,8 +11,11 @@ class Perfume {
   final String? sillage;
   final List<String> notes;
   final List<String> mainAccords;
+  final Map<String, double> mainAccordsPercentage;
+  final List<PerfumeRanking> seasonRanking;
+  final List<PerfumeRanking> occasionRanking;
 
-  const Perfume({required this.externalId, required this.name, this.brand, this.imageUrl, this.releaseYear, this.rating, this.gender, this.oilType, this.longevity, this.sillage, this.notes = const [], this.mainAccords = const []});
+  const Perfume({required this.externalId, required this.name, this.brand, this.imageUrl, this.releaseYear, this.rating, this.gender, this.oilType, this.longevity, this.sillage, this.notes = const [], this.mainAccords = const [], this.mainAccordsPercentage = const {}, this.seasonRanking = const [], this.occasionRanking = const []});
 
   factory Perfume.fromJson(Map<String, dynamic> json) => Perfume(
     externalId: json['externalId'] as String, name: json['name'] as String,
@@ -21,7 +24,22 @@ class Perfume {
     longevity: json['longevity'] as String?, sillage: json['sillage'] as String?,
     notes: (json['notes'] as List<dynamic>? ?? []).map((e) => e is Map<String, dynamic> ? e['name'] as String : e.toString()).toList(),
     mainAccords: (json['mainAccords'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+    mainAccordsPercentage: ((json['mainAccordsPercentage'] as Map<String, dynamic>?) ?? {}).map((key, value) => MapEntry(key, double.tryParse(value.toString().replaceAll('%', '')) ?? 0)),
+    seasonRanking: (json['seasonRanking'] as List<dynamic>? ?? []).map((e) => PerfumeRanking.fromJson(e as Map<String, dynamic>)).toList(),
+    occasionRanking: (json['occasionRanking'] as List<dynamic>? ?? []).map((e) => PerfumeRanking.fromJson(e as Map<String, dynamic>)).toList(),
   );
+}
+
+class PerfumeRanking {
+  final String name;
+  final double score;
+
+  const PerfumeRanking(this.name, this.score);
+
+  factory PerfumeRanking.fromJson(Map<String, dynamic> json) => PerfumeRanking(
+        json['name'] as String,
+        (json['score'] as num?)?.toDouble() ?? 0,
+      );
 }
 
 class SearchResult {
