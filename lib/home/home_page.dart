@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../catalog/data/catalog_repository.dart';
@@ -88,13 +89,33 @@ class SearchView extends StatefulWidget {
 class _SearchViewState extends State<SearchView> {
   final _query = TextEditingController();
   SearchResult? _result;
+  SearchResult? _suggestions;
+  Timer? _suggestionTimer;
   bool _loading = false;
   String? _error;
 
   @override
   void dispose() {
+    _suggestionTimer?.cancel();
     _query.dispose();
     super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    _suggestionTimer?.cancel();
+    final query = value.trim();
+    if (query.length < 2) {
+      setState(() => _suggestions = null);
+      return;
+    }
+    _suggestionTimer = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        final result = await widget.repository.suggestions(query);
+        if (mounted && _query.text.trim() == query) setState(() => _suggestions = result);
+      } catch (_) {
+        if (mounted) setState(() => _suggestions = null);
+      }
+    });
   }
 
   Future<void> _search() async {
@@ -130,6 +151,7 @@ class _SearchViewState extends State<SearchView> {
           const SizedBox(height: 20),
           TextField(
             controller: _query,
+            onChanged: _onQueryChanged,
             textInputAction: TextInputAction.search,
             onSubmitted: (_) => _search(),
             decoration: InputDecoration(
@@ -141,6 +163,27 @@ class _SearchViewState extends State<SearchView> {
               ),
             ),
           ),
+          if (_suggestions != null && _suggestions!.items.isNotEmpty)
+            Card(
+              margin: const EdgeInsets.only(top: 6),
+              child: Column(
+                children: _suggestions!.items
+                    .map(
+                      (perfume) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.history, color: EssenzaColors.deepOcean),
+                        title: Text(perfume.name),
+                        subtitle: Text(perfume.brand ?? 'Marca não informada'),
+                        onTap: () {
+                          _query.text = perfume.name;
+                          setState(() => _suggestions = null);
+                          _search();
+                        },
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),

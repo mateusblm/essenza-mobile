@@ -6,6 +6,7 @@ class CatalogRepository {
   CatalogRepository(this.client);
 
   Future<SearchResult> search(String query) async => SearchResult.fromJson(await client.get('/perfumes?q=${Uri.encodeQueryComponent(query)}'));
+  Future<SearchResult> suggestions(String query) async => SearchResult.fromJson(await client.get('/perfumes/suggestions?q=${Uri.encodeQueryComponent(query)}&limit=5'));
   Future<Perfume> details(String externalId) async => Perfume.fromJson(await client.get('/perfumes/${Uri.encodeComponent(externalId)}'));
   Future<List<Perfume>> collection() async {
     final response = await client.getJson('/collection') as List<dynamic>;

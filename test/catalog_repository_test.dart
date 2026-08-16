@@ -24,6 +24,14 @@ void main() {
     expect(result.items.single.brand, 'Dior');
   });
 
+  test('suggestions use the local catalog endpoint', () async {
+    final client = CatalogMockHttpClient();
+    when(() => client.get(any(), headers: any(named: 'headers'))).thenAnswer((_) async => http.Response(jsonEncode({'items': [{'externalId': 'p1', 'name': 'Sauvage', 'brand': {'name': 'Dior'}}], 'total': 1}), 200));
+    final result = await CatalogRepository(ApiClient(httpClient: client, tokenStore: CatalogMemoryStore(), baseUrl: 'http://test')).suggestions('sau');
+    expect(result.items.single.name, 'Sauvage');
+    verify(() => client.get(Uri.parse('http://test/perfumes/suggestions?q=sau&limit=5'), headers: any(named: 'headers'))).called(1);
+  });
+
   test('collection uses add and delete endpoints', () async {
     final client = CatalogMockHttpClient();
     when(() => client.post(any(), headers: any(named: 'headers'), body: any(named: 'body'))).thenAnswer((_) async => http.Response(jsonEncode({'externalId': 'p1', 'name': 'Sauvage', 'brand': 'Dior'}), 200));
