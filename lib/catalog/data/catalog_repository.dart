@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../models/perfume.dart';
+import '../models/collection_insights.dart';
 
 class CatalogRepository {
   final ApiClient client;
@@ -12,6 +13,7 @@ class CatalogRepository {
     final response = await client.getJson('/collection') as List<dynamic>;
     return response.map((e) => Perfume.fromJson(e as Map<String, dynamic>)).toList();
   }
+  Future<CollectionInsights> collectionInsights() async => CollectionInsights.fromJson(await client.get('/collection/insights'));
   Future<Perfume> addToCollection(String externalId) async => Perfume.fromJson(await client.post('/collection/${Uri.encodeComponent(externalId)}', {}));
   Future<void> removeFromCollection(String externalId) => client.delete('/collection/${Uri.encodeComponent(externalId)}');
 }

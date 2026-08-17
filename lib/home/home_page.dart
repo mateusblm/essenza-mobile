@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../catalog/data/catalog_repository.dart';
 import '../catalog/models/perfume.dart';
+import '../catalog/models/collection_insights.dart';
 import '../catalog/presentation/catalog_labels.dart';
 import '../core/theme/app_theme.dart';
 import '../diary/data/diary_repository.dart';
@@ -252,17 +253,25 @@ class CollectionView extends StatefulWidget {
 }
 
 class _CollectionViewState extends State<CollectionView> {
-  late Future<List<Perfume>> _future;
+  late Future<_CollectionData> _future;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.repository.collection();
+    _future = _load();
+  }
+
+  Future<_CollectionData> _load() async {
+    final results = await Future.wait([
+      widget.repository.collection(),
+      widget.repository.collectionInsights(),
+    ]);
+    return _CollectionData(results[0] as List<Perfume>, results[1] as CollectionInsights);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Perfume>>(
+    return FutureBuilder<_CollectionData>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -271,12 +280,13 @@ class _CollectionViewState extends State<CollectionView> {
         if (snapshot.hasError) {
           return Center(
             child: FilledButton(
-              onPressed: () => setState(() => _future = widget.repository.collection()),
+              onPressed: () => setState(() => _future = _load()),
               child: const Text('Tentar novamente'),
             ),
           );
         }
-        final items = snapshot.data ?? <Perfume>[];
+        final data = snapshot.data;
+        final items = data?.perfumes ?? <Perfume>[];
         if (items.isEmpty) {
           return const _EmptyState(
             icon: Icons.favorite_outline,
@@ -286,14 +296,14 @@ class _CollectionViewState extends State<CollectionView> {
         }
         return RefreshIndicator(
           onRefresh: () {
-            final future = widget.repository.collection();
+            final future = _load();
             setState(() => _future = future);
             return future.then((_) {});
           },
           child: ListView(
             padding: const EdgeInsets.only(top: 12, bottom: 20),
             children: [
-              _CollectionProfile(perfumes: items),
+              _CollectionProfile(insights: data!.insights),
               const SizedBox(height: 12),
               ...items.map(
                 (perfume) => PerfumeTile(
@@ -335,7 +345,7 @@ class _CollectionViewState extends State<CollectionView> {
                           icon: const Icon(Icons.remove_circle_outline),
                           onPressed: () async {
                             await widget.repository.removeFromCollection(perfume.externalId);
-                            if (mounted) setState(() => _future = widget.repository.collection());
+                            if (mounted) setState(() => _future = _load());
                           },
                         ),
                       ],
@@ -350,37 +360,22 @@ class _CollectionViewState extends State<CollectionView> {
   }
 }
 
-class _CollectionProfile extends StatelessWidget {
+class _CollectionData {
   final List<Perfume> perfumes;
+  final CollectionInsights insights;
 
-  const _CollectionProfile({required this.perfumes});
+  const _CollectionData(this.perfumes, this.insights);
+}
+
+class _CollectionProfile extends StatelessWidget {
+  final CollectionInsights insights;
+
+  const _CollectionProfile({required this.insights});
 
   @override
   Widget build(BuildContext context) {
-    final families = <String, double>{
-      'Fresco': _score(['citrus', 'fresh', 'aquatic', 'green', 'aromatic']),
-      'Floral': _score(['floral', 'rose', 'jasmine', 'iris', 'white flowers']),
-      'Amadeirado': _score(['woody', 'wood', 'sandalwood', 'cedar', 'oud']),
-      'Doce': _score(['sweet', 'vanilla', 'caramel', 'honey', 'chocolate']),
-      'Oriental': _score(['amber', 'warm spicy', 'spicy', 'balsamic', 'resin']),
-      'Frutado': _score(['fruity', 'apple', 'citrus', 'peach', 'pear']),
-    };
-    final sortedFamilies = families.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final climate = <String, double>{
-      'Calor': _seasonScore(['summer', 'verão', 'summer heat']),
-      'Ameno': _seasonScore(['spring', 'primavera', 'autumn', 'outono']),
-      'Frio': _seasonScore(['winter', 'inverno']),
-    };
-    final occasionRanking = _rankingValues((perfume) => perfume.occasionRanking);
-    final occasions = <String>[
-      if ((occasionRanking['day'] ?? occasionRanking['dia'] ?? 0) >= 0.25) 'Dia',
-      if ((occasionRanking['casual'] ?? 0) >= 0.25) 'Casual',
-      if ((occasionRanking['night'] ?? occasionRanking['noite'] ?? occasionRanking['night out'] ?? 0) >= 0.25) 'Noite',
-      if ((occasionRanking['date'] ?? occasionRanking['encontro'] ?? 0) >= 0.25) 'Encontros',
-      if ((occasionRanking['work'] ?? occasionRanking['trabalho'] ?? occasionRanking['office'] ?? occasionRanking['professional'] ?? 0) >= 0.25) 'Trabalho',
-      if (occasionRanking.isEmpty && families['Fresco']! >= families['Doce']!) 'Dia',
-      if (occasionRanking.isEmpty && (families['Doce']! >= 0.25 || families['Oriental']! >= 0.25)) 'Noite',
-    ];
+    final familyValues = insights.olfactiveProfile.map((item) => item.percentage / 100).toList();
+    final topFamilies = [...insights.olfactiveProfile]..sort((a, b) => b.percentage.compareTo(a.percentage));
 
     return Card(
       child: Padding(
@@ -406,7 +401,7 @@ class _CollectionProfile extends StatelessWidget {
                   height: 150,
                   child: CustomPaint(
                     painter: _RadarPainter(
-                      values: families.values.toList(),
+                      values: familyValues,
                       color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
@@ -415,10 +410,10 @@ class _CollectionProfile extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: sortedFamilies.take(3).map((item) {
+                    children: topFamilies.take(3).map((item) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Text('${item.key}  ${(item.value * 100).round()}%', overflow: TextOverflow.ellipsis),
+                        child: Text('${item.label}  ${item.percentage.round()}%', overflow: TextOverflow.ellipsis),
                       );
                     }).toList(),
                   ),
@@ -428,12 +423,19 @@ class _CollectionProfile extends StatelessWidget {
             const SizedBox(height: 12),
             Text('Climas que combinam com sua coleção', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 10),
-            ...climate.entries.map((item) => _ProfileBar(label: item.key, value: item.value)),
+            ...insights.climates.map((item) => _ProfileBar(label: item.label, value: item.percentage / 100)),
             const SizedBox(height: 8),
-            if (occasions.isNotEmpty) ...[
+            if (insights.occasions.isNotEmpty) ...[
               Text('Momentos prováveis', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: occasions.map((item) => Chip(label: Text(item))).toList()),
+              Wrap(spacing: 8, runSpacing: 8, children: insights.occasions.map((item) => Chip(label: Text(item))).toList()),
+            ],
+            if (insights.recommendations.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              ...insights.recommendations.map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text('• $item'),
+                  )),
             ],
           ],
         ),
@@ -441,64 +443,6 @@ class _CollectionProfile extends StatelessWidget {
     );
   }
 
-  double _score(List<String> terms) {
-    if (perfumes.isEmpty) return 0;
-    final weighted = _weightedAccordScore(terms);
-    if (weighted != null) return weighted;
-    var totalElements = 0;
-    var matchingElements = 0;
-    for (final perfume in perfumes) {
-      final values = {...perfume.notes, ...perfume.mainAccords}
-          .map((value) => value.trim().toLowerCase())
-          .where((value) => value.isNotEmpty)
-          .toList();
-      totalElements += values.length;
-      matchingElements += values.where((value) => terms.any(value.contains)).length;
-    }
-    return totalElements == 0 ? 0 : matchingElements / totalElements;
-  }
-
-  double? _weightedAccordScore(List<String> terms) {
-    final withWeights = perfumes.where((perfume) => perfume.mainAccordsPercentage.isNotEmpty).toList();
-    if (withWeights.isEmpty) return null;
-    var total = 0.0;
-    var matching = 0.0;
-    for (final perfume in withWeights) {
-      final values = perfume.mainAccordsPercentage;
-      final scale = values.values.any((value) => value > 1) ? 100 : 1;
-      total += values.values.fold(0.0, (sum, value) => sum + value / scale);
-      matching += values.entries
-          .where((entry) => terms.any(entry.key.toLowerCase().contains))
-          .fold(0.0, (sum, entry) => sum + entry.value / scale);
-    }
-    return total == 0 ? 0 : matching / total;
-  }
-
-  double _seasonScore(List<String> terms) {
-    final values = _rankingValues((perfume) => perfume.seasonRanking);
-    if (values.isEmpty) return _score(terms);
-    return values.entries
-        .where((entry) => terms.any((term) => entry.key.contains(term)))
-        .fold(0.0, (sum, entry) => sum + entry.value);
-  }
-
-  Map<String, double> _rankingValues(List<PerfumeRanking> Function(Perfume) selector) {
-    final totals = <String, double>{};
-    var perfumeCount = 0;
-    for (final perfume in perfumes) {
-      final rankings = selector(perfume);
-      if (rankings.isEmpty) continue;
-      perfumeCount++;
-      final scale = rankings.map((item) => item.score).fold(0.0, math.max);
-      if (scale == 0) continue;
-      for (final ranking in rankings) {
-        final key = ranking.name.toLowerCase();
-        totals[key] = (totals[key] ?? 0) + ranking.score / scale;
-      }
-    }
-    if (perfumeCount == 0) return {};
-    return totals.map((key, value) => MapEntry(key, value / perfumeCount));
-  }
 }
 
 class _ProfileBar extends StatelessWidget {

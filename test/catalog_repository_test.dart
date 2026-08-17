@@ -42,4 +42,25 @@ void main() {
     verify(() => client.post(any(), headers: any(named: 'headers'), body: any(named: 'body'))).called(1);
     verify(() => client.delete(any(), headers: any(named: 'headers'))).called(1);
   });
+
+  test('collection insights use the backend endpoint', () async {
+    final client = CatalogMockHttpClient();
+    when(() => client.get(any(), headers: any(named: 'headers'))).thenAnswer(
+      (_) async => http.Response(jsonEncode({
+        'perfumeCount': 1,
+        'olfactiveProfile': [{'label': 'Doce', 'percentage': 75}],
+        'climates': [{'label': 'Calor', 'percentage': 100}],
+        'occasions': ['Noite'],
+        'recommendations': ['Sua coleção tende ao perfil doce.'],
+      }), 200),
+    );
+    final result = await CatalogRepository(ApiClient(
+      httpClient: client,
+      tokenStore: CatalogMemoryStore(),
+      baseUrl: 'http://test',
+    )).collectionInsights();
+    expect(result.olfactiveProfile.single.percentage, 75);
+    expect(result.occasions, ['Noite']);
+    verify(() => client.get(Uri.parse('http://test/collection/insights'), headers: any(named: 'headers'))).called(1);
+  });
 }
