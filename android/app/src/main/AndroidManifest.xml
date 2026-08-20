@@ -4,7 +4,7 @@
     <application
         android:label="Essenza"
         android:name="${applicationName}"
-        android:icon="@drawable/essenza_icon">
+        android:icon="@drawable/essenza_logo_app">
         <activity
             android:name=".MainActivity"
             android:exported="true"

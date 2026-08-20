@@ -10,7 +10,8 @@ import 'home/home_page.dart';
 
 class EssenzaApp extends StatefulWidget {
   const EssenzaApp({super.key});
-  @override State<EssenzaApp> createState() => _EssenzaAppState();
+  @override
+  State<EssenzaApp> createState() => _EssenzaAppState();
 }
 
 class _EssenzaAppState extends State<EssenzaApp> {
@@ -34,11 +35,19 @@ class _EssenzaAppState extends State<EssenzaApp> {
 
   Future<void> _restoreSession() async {
     final token = await _store.read();
-    if (mounted) setState(() { _authenticated = token != null; _loading = false; });
+    if (mounted) {
+      setState(() {
+        _authenticated = token != null;
+        _loading = false;
+      });
+    }
   }
 
   void _onAuthenticated() => setState(() => _authenticated = true);
-  Future<void> _logout() async { await _auth.logout(); if (mounted) setState(() => _authenticated = false); }
+  Future<void> _logout() async {
+    await _auth.logout();
+    if (mounted) setState(() => _authenticated = false);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,10 +56,52 @@ class _EssenzaAppState extends State<EssenzaApp> {
       debugShowCheckedModeBanner: false,
       theme: EssenzaTheme.light(),
       home: _loading
-          ? const Scaffold(body: Center(child: CircularProgressIndicator()))
+          ? const _SplashView()
           : _authenticated
-              ? HomePage(repository: _catalog, diaryRepository: _diary, onLogout: _logout)
-              : LoginPage(repository: _auth, onAuthenticated: _onAuthenticated),
+          ? HomePage(
+              repository: _catalog,
+              diaryRepository: _diary,
+              onLogout: _logout,
+            )
+          : LoginPage(repository: _auth, onAuthenticated: _onAuthenticated),
     );
   }
+}
+
+class _SplashView extends StatelessWidget {
+  const _SplashView();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: SafeArea(
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/essenza_trails.png',
+              width: 132,
+              height: 210,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'ESSENZA',
+              style: TextStyle(
+                fontFamily: 'serif',
+                fontSize: 32,
+                letterSpacing: 6,
+                color: EssenzaColors.burgundyDark,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Sua coleção. Seu aroma.',
+              style: TextStyle(color: EssenzaColors.muted, letterSpacing: .4),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

@@ -32,47 +32,460 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Essenza'),
-        actions: [
-          IconButton(
-            onPressed: widget.onLogout,
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sair',
-          ),
-        ],
-      ),
       body: switch (_tab) {
-        0 => SearchView(
-            repository: widget.repository,
-            diaryRepository: widget.diaryRepository,
-          ),
-        1 => CollectionView(repository: widget.repository, diaryRepository: widget.diaryRepository),
-        _ => DiaryPage(repository: widget.diaryRepository),
+        0 => _DashboardView(
+          repository: widget.repository,
+          onExplore: () => setState(() => _tab = 1),
+        ),
+        1 => SearchView(
+          repository: widget.repository,
+          diaryRepository: widget.diaryRepository,
+        ),
+        2 => CollectionView(
+          repository: widget.repository,
+          diaryRepository: widget.diaryRepository,
+        ),
+        3 => const _WishlistView(),
+        _ => _ProfileView(onLogout: widget.onLogout),
       },
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
         onDestinationSelected: (value) => setState(() => _tab = value),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.search),
-            selectedIcon: Icon(Icons.search_rounded),
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Início',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
             label: 'Explorar',
           ),
           NavigationDestination(
-            icon: Icon(Icons.favorite_outline),
-            selectedIcon: Icon(Icons.favorite),
+            icon: Icon(Icons.auto_awesome_mosaic_outlined),
+            selectedIcon: Icon(Icons.auto_awesome_mosaic),
             label: 'Coleção',
           ),
           NavigationDestination(
-            icon: Icon(Icons.history_outlined),
-            selectedIcon: Icon(Icons.history),
-            label: 'Diário',
+            icon: Icon(Icons.favorite_border),
+            selectedIcon: Icon(Icons.favorite),
+            label: 'Wishlist',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Perfil',
           ),
         ],
       ),
     );
   }
+}
+
+class _DashboardView extends StatefulWidget {
+  final CatalogRepository repository;
+  final VoidCallback onExplore;
+  const _DashboardView({required this.repository, required this.onExplore});
+  @override
+  State<_DashboardView> createState() => _DashboardViewState();
+}
+
+class _DashboardViewState extends State<_DashboardView> {
+  late Future<CollectionInsights> _future;
+  @override
+  void initState() {
+    super.initState();
+    _future = widget.repository.collectionInsights();
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: FutureBuilder<CollectionInsights>(
+      future: _future,
+      builder: (context, snapshot) {
+        final insights = snapshot.data;
+        final profile =
+            insights?.olfactiveProfile ?? const <CollectionInsightScore>[];
+        return RefreshIndicator(
+          onRefresh: () async {
+            final next = widget.repository.collectionInsights();
+            setState(() => _future = next);
+            await next;
+          },
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Boa noite',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Sua coleção',
+                          style: Theme.of(context).textTheme.headlineLarge,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: EssenzaColors.backgroundMuted,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: EssenzaColors.border),
+                    ),
+                    child: const Icon(
+                      Icons.notifications_none,
+                      color: EssenzaColors.burgundy,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${insights?.perfumeCount ?? 0} perfumes · uma assinatura só sua',
+              ),
+              const SizedBox(height: 24),
+              _DnaCard(
+                profile: profile,
+                loading: snapshot.connectionState == ConnectionState.waiting,
+              ),
+              const SizedBox(height: 16),
+              _CoverageCard(onExplore: widget.onExplore),
+              const SizedBox(height: 26),
+              _SectionHeader(
+                title: 'Escolhidos para você',
+                action: 'Ver todos',
+                onTap: widget.onExplore,
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 172,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: const [
+                    _RecommendationPreview(
+                      name: 'Versace Pour Homme',
+                      tag: '88% compatível',
+                      icon: Icons.water_drop_outlined,
+                    ),
+                    SizedBox(width: 12),
+                    _RecommendationPreview(
+                      name: 'Acqua di Giò',
+                      tag: '82% compatível',
+                      icon: Icons.waves_outlined,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _DnaCard extends StatelessWidget {
+  final List<CollectionInsightScore> profile;
+  final bool loading;
+  const _DnaCard({required this.profile, required this.loading});
+  @override
+  Widget build(BuildContext context) {
+    final fallback = const [
+      ('Amadeirado', 24.0),
+      ('Aromático', 21.0),
+      ('Doce', 17.0),
+      ('Especiado', 13.0),
+      ('Âmbar', 11.0),
+    ];
+    final values = profile.isEmpty
+        ? fallback
+        : profile.take(5).map((e) => (e.label, e.percentage)).toList();
+    final highest = values.fold<double>(
+      1,
+      (value, item) => math.max(value, item.$2),
+    );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Seu DNA Olfativo',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 5),
+            const Text(
+              'Amadeirado · Aromático · Doce',
+              style: TextStyle(
+                fontFamily: 'serif',
+                color: EssenzaColors.burgundyDark,
+                fontSize: 20,
+                height: 1.15,
+              ),
+            ),
+            const SizedBox(height: 20),
+            if (loading)
+              const LinearProgressIndicator()
+            else
+              ...values.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 7),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: FractionallySizedBox(
+                          alignment: Alignment.centerLeft,
+                          widthFactor: (.58 + ((item.$2 / highest) * .42))
+                              .clamp(.58, 1),
+                          child: Container(
+                            height: 34,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: _accordColor(item.$1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item.$1,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: _accordTextColor(item.$1),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      SizedBox(
+                        width: 34,
+                        child: Text(
+                          '${item.$2.round()}%',
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(
+                            color: EssenzaColors.muted,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 6),
+            const Text(
+              'Sua coleção possui forte presença amadeirada e aromática.',
+              style: TextStyle(
+                color: EssenzaColors.muted,
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _accordColor(String accord) {
+    final name = accord.toLowerCase();
+    if (name.contains('amadeir') || name.contains('woody')) {
+      return const Color(0xFF9B6B43);
+    }
+    if (name.contains('arom')) return const Color(0xFF72927B);
+    if (name.contains('cítric') || name.contains('citrus')) {
+      return const Color(0xFFE3C35C);
+    }
+    if (name.contains('doce') || name.contains('sweet')) {
+      return const Color(0xFFD88A91);
+    }
+    if (name.contains('espec') || name.contains('spicy')) {
+      return const Color(0xFFB85E46);
+    }
+    if (name.contains('âmbar') || name.contains('amber')) {
+      return const Color(0xFFC68A3D);
+    }
+    if (name.contains('floral')) return const Color(0xFFC996A5);
+    if (name.contains('fresco') || name.contains('fresh')) {
+      return const Color(0xFF82B7AE);
+    }
+    return EssenzaColors.backgroundMuted;
+  }
+
+  Color _accordTextColor(String accord) {
+    final color = _accordColor(accord);
+    return color.computeLuminance() > .58 ? EssenzaColors.ink : Colors.white;
+  }
+}
+
+class _CoverageCard extends StatelessWidget {
+  final VoidCallback onExplore;
+  const _CoverageCard({required this.onExplore});
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Cobertura da coleção',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 5),
+                    const Text('Coleção bastante versátil'),
+                  ],
+                ),
+              ),
+              const Text(
+                '72',
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  color: EssenzaColors.burgundy,
+                  fontSize: 36,
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 15),
+                child: Text('/100'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          ...const [
+            ('Trabalho', 1.0),
+            ('Encontro', .9),
+            ('Festa', .8),
+            ('Calor', .4),
+            ('Frio', 1.0),
+          ].map(
+            (e) => Padding(
+              padding: const EdgeInsets.only(bottom: 9),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 72,
+                    child: Text(e.$1, style: const TextStyle(fontSize: 13)),
+                  ),
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: LinearProgressIndicator(
+                        value: e.$2,
+                        minHeight: 6,
+                        backgroundColor: EssenzaColors.backgroundMuted,
+                        color: EssenzaColors.burgundy,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 28),
+          const Text(
+            'SUA PRINCIPAL LACUNA',
+            style: TextStyle(
+              color: EssenzaColors.gold,
+              fontSize: 11,
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Perfumes frescos para dias quentes.',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 14),
+          FilledButton(
+            onPressed: onExplore,
+            child: const Text('Ver recomendações'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title, action;
+  final VoidCallback onTap;
+  const _SectionHeader({
+    required this.title,
+    required this.action,
+    required this.onTap,
+  });
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      ),
+      TextButton(onPressed: onTap, child: Text(action)),
+    ],
+  );
+}
+
+class _RecommendationPreview extends StatelessWidget {
+  final String name, tag;
+  final IconData icon;
+  const _RecommendationPreview({
+    required this.name,
+    required this.tag,
+    required this.icon,
+  });
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 160,
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(22),
+      border: Border.all(color: EssenzaColors.border),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Center(child: Icon(icon, color: EssenzaColors.gold, size: 46)),
+        ),
+        Text(
+          name,
+          maxLines: 2,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          tag,
+          style: const TextStyle(
+            color: EssenzaColors.success,
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class SearchView extends StatefulWidget {
@@ -114,7 +527,9 @@ class _SearchViewState extends State<SearchView> {
     _suggestionTimer = Timer(const Duration(milliseconds: 300), () async {
       try {
         final result = await widget.repository.suggestions(query);
-        if (mounted && _query.text.trim() == query) setState(() => _suggestions = result);
+        if (mounted && _query.text.trim() == query) {
+          setState(() => _suggestions = result);
+        }
       } catch (_) {
         if (mounted) setState(() => _suggestions = null);
       }
@@ -140,103 +555,108 @@ class _SearchViewState extends State<SearchView> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Encontre sua próxima assinatura',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 6),
-          const Text('Explore fragrâncias e descubra novas sensações.'),
-          const SizedBox(height: 20),
-          TextField(
-            controller: _query,
-            onChanged: _onQueryChanged,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (_) => _search(),
-            decoration: InputDecoration(
-              labelText: 'Buscar perfume ou marca',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
-                onPressed: _search,
-                icon: const Icon(Icons.arrow_forward),
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Descobrir', style: Theme.of(context).textTheme.headlineLarge),
+            const SizedBox(height: 6),
+            const Text('Perfumes escolhidos para o seu gosto e sua coleção.'),
+            const SizedBox(height: 20),
+            TextField(
+              controller: _query,
+              onChanged: _onQueryChanged,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (_) => _search(),
+              decoration: InputDecoration(
+                hintText: 'Buscar perfume, marca ou nota',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  onPressed: _search,
+                  icon: const Icon(Icons.arrow_forward),
+                ),
               ),
             ),
-          ),
-          if (_suggestions != null && _suggestions!.items.isNotEmpty)
-            Card(
-              margin: const EdgeInsets.only(top: 6),
-              child: Column(
-                children: _suggestions!.items
-                    .map(
-                      (perfume) => ListTile(
-                        dense: true,
-                        leading: const Icon(Icons.history, color: EssenzaColors.deepOcean),
-                        title: Text(perfume.name),
-                        subtitle: Text(perfume.brand ?? 'Marca não informada'),
-                        onTap: () {
-                          _query.text = perfume.name;
-                          setState(() => _suggestions = null);
-                          _search();
-                        },
-                      ),
-                    )
-                    .toList(),
+            if (_suggestions != null && _suggestions!.items.isNotEmpty)
+              Card(
+                margin: const EdgeInsets.only(top: 6),
+                child: Column(
+                  children: _suggestions!.items
+                      .map(
+                        (perfume) => ListTile(
+                          dense: true,
+                          leading: const Icon(
+                            Icons.history,
+                            color: EssenzaColors.deepOcean,
+                          ),
+                          title: Text(perfume.name),
+                          subtitle: Text(
+                            perfume.brand ?? 'Marca não informada',
+                          ),
+                          onTap: () {
+                            _query.text = perfume.name;
+                            setState(() => _suggestions = null);
+                            _search();
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
               ),
-            ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+            if (_error != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
-            ),
-          if (_loading)
-            const Expanded(child: Center(child: CircularProgressIndicator()))
-          else if (_result == null)
-            const Expanded(
-              child: _EmptyState(
-                icon: Icons.spa_outlined,
-                title: 'Sua jornada começa aqui',
-                message: 'Busque uma fragrância para conhecer suas notas e registrar sua experiência.',
-              ),
-            )
-          else if (_result!.items.isEmpty)
-            const Expanded(
-              child: _EmptyState(
-                icon: Icons.search_off,
-                title: 'Nenhum perfume encontrado',
-                message: 'Tente buscar por outro nome ou marca.',
-              ),
-            )
-          else
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.only(top: 16, bottom: 16),
-                itemCount: _result!.items.length,
-                itemBuilder: (_, index) {
-                  final perfume = _result!.items[index];
-                  return PerfumeTile(
-                    perfume: perfume,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PerfumeDetailsPage(
-                          repository: widget.repository,
-                          diaryRepository: widget.diaryRepository,
-                          perfume: perfume,
+            if (_loading)
+              const Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (_result == null)
+              const Expanded(
+                child: _EmptyState(
+                  icon: Icons.spa_outlined,
+                  title: 'Sua jornada começa aqui',
+                  message:
+                      'Busque uma fragrância para conhecer suas notas e registrar sua experiência.',
+                ),
+              )
+            else if (_result!.items.isEmpty)
+              const Expanded(
+                child: _EmptyState(
+                  icon: Icons.search_off,
+                  title: 'Nenhum perfume encontrado',
+                  message: 'Tente buscar por outro nome ou marca.',
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(top: 16, bottom: 16),
+                  itemCount: _result!.items.length,
+                  itemBuilder: (_, index) {
+                    final perfume = _result!.items[index];
+                    return PerfumeTile(
+                      perfume: perfume,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PerfumeDetailsPage(
+                            repository: widget.repository,
+                            diaryRepository: widget.diaryRepository,
+                            perfume: perfume,
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -246,7 +666,11 @@ class CollectionView extends StatefulWidget {
   final CatalogRepository repository;
   final DiaryRepository diaryRepository;
 
-  const CollectionView({super.key, required this.repository, required this.diaryRepository});
+  const CollectionView({
+    super.key,
+    required this.repository,
+    required this.diaryRepository,
+  });
 
   @override
   State<CollectionView> createState() => _CollectionViewState();
@@ -266,7 +690,10 @@ class _CollectionViewState extends State<CollectionView> {
       widget.repository.collection(),
       widget.repository.collectionInsights(),
     ]);
-    return _CollectionData(results[0] as List<Perfume>, results[1] as CollectionInsights);
+    return _CollectionData(
+      results[0] as List<Perfume>,
+      results[1] as CollectionInsights,
+    );
   }
 
   @override
@@ -307,49 +734,53 @@ class _CollectionViewState extends State<CollectionView> {
               const SizedBox(height: 12),
               ...items.map(
                 (perfume) => PerfumeTile(
-                    perfume: perfume,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PerfumeDetailsPage(
-                          repository: widget.repository,
-                          diaryRepository: widget.diaryRepository,
-                          perfume: perfume,
-                        ),
+                  perfume: perfume,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PerfumeDetailsPage(
+                        repository: widget.repository,
+                        diaryRepository: widget.diaryRepository,
+                        perfume: perfume,
                       ),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          tooltip: 'Registrar uso',
-                          icon: const Icon(Icons.history),
-                          onPressed: () async {
-                            final saved = await Navigator.push<bool>(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DiaryFormPage(
-                                  repository: widget.diaryRepository,
-                                  perfume: perfume,
-                                ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Registrar uso',
+                        icon: const Icon(Icons.history),
+                        onPressed: () async {
+                          final saved = await Navigator.push<bool>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => DiaryFormPage(
+                                repository: widget.diaryRepository,
+                                perfume: perfume,
                               ),
-                            );
-                            if (saved != true || !context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Experiencia registrada.')),
-                            );
-                          },
-                        ),
-                        IconButton(
-                          tooltip: 'Remover da colecao',
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () async {
-                            await widget.repository.removeFromCollection(perfume.externalId);
-                            if (mounted) setState(() => _future = _load());
-                          },
-                        ),
-                      ],
-                    ),
+                            ),
+                          );
+                          if (saved != true || !context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Experiencia registrada.'),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        tooltip: 'Remover da colecao',
+                        icon: const Icon(Icons.remove_circle_outline),
+                        onPressed: () async {
+                          await widget.repository.removeFromCollection(
+                            perfume.externalId,
+                          );
+                          if (mounted) setState(() => _future = _load());
+                        },
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -374,8 +805,11 @@ class _CollectionProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final familyValues = insights.olfactiveProfile.map((item) => item.percentage / 100).toList();
-    final topFamilies = [...insights.olfactiveProfile]..sort((a, b) => b.percentage.compareTo(a.percentage));
+    final familyValues = insights.olfactiveProfile
+        .map((item) => item.percentage / 100)
+        .toList();
+    final topFamilies = [...insights.olfactiveProfile]
+      ..sort((a, b) => b.percentage.compareTo(a.percentage));
 
     return Card(
       child: Padding(
@@ -387,7 +821,10 @@ class _CollectionProfile extends StatelessWidget {
               children: [
                 const Icon(Icons.insights, color: EssenzaColors.deepOcean),
                 const SizedBox(width: 8),
-                Text('Seu perfil olfativo', style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  'Seu perfil olfativo',
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ],
             ),
             const SizedBox(height: 4),
@@ -413,7 +850,10 @@ class _CollectionProfile extends StatelessWidget {
                     children: topFamilies.take(3).map((item) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 8),
-                        child: Text('${item.label}  ${item.percentage.round()}%', overflow: TextOverflow.ellipsis),
+                        child: Text(
+                          '${item.label}  ${item.percentage.round()}%',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       );
                     }).toList(),
                   ),
@@ -421,28 +861,44 @@ class _CollectionProfile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text('Climas que combinam com sua coleção', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Climas que combinam com sua coleção',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 10),
-            ...insights.climates.map((item) => _ProfileBar(label: item.label, value: item.percentage / 100)),
+            ...insights.climates.map(
+              (item) =>
+                  _ProfileBar(label: item.label, value: item.percentage / 100),
+            ),
             const SizedBox(height: 8),
             if (insights.occasions.isNotEmpty) ...[
-              Text('Momentos prováveis', style: Theme.of(context).textTheme.titleMedium),
+              Text(
+                'Momentos prováveis',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
               const SizedBox(height: 8),
-              Wrap(spacing: 8, runSpacing: 8, children: insights.occasions.map((item) => Chip(label: Text(item))).toList()),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: insights.occasions
+                    .map((item) => Chip(label: Text(item)))
+                    .toList(),
+              ),
             ],
             if (insights.recommendations.isNotEmpty) ...[
               const SizedBox(height: 12),
-              ...insights.recommendations.map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Text('• $item'),
-                  )),
+              ...insights.recommendations.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text('• $item'),
+                ),
+              ),
             ],
           ],
         ),
       ),
     );
   }
-
 }
 
 class _ProfileBar extends StatelessWidget {
@@ -453,20 +909,26 @@ class _ProfileBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            SizedBox(width: 52, child: Text(label)),
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: LinearProgressIndicator(value: value.clamp(0, 1), minHeight: 9),
-              ),
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      children: [
+        SizedBox(width: 52, child: Text(label)),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: value.clamp(0, 1),
+              minHeight: 9,
             ),
-            SizedBox(width: 42, child: Text(' ${(value * 100).round()}%', textAlign: TextAlign.end)),
-          ],
+          ),
         ),
-      );
+        SizedBox(
+          width: 42,
+          child: Text(' ${(value * 100).round()}%', textAlign: TextAlign.end),
+        ),
+      ],
+    ),
+  );
 }
 
 class _RadarPainter extends CustomPainter {
@@ -479,9 +941,16 @@ class _RadarPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.shortestSide / 2 - 8;
-    final grid = Paint()..style = PaintingStyle.stroke..color = color.withValues(alpha: 0.22);
-    final fill = Paint()..style = PaintingStyle.fill..color = color.withValues(alpha: 0.28);
-    final outline = Paint()..style = PaintingStyle.stroke..strokeWidth = 2..color = color;
+    final grid = Paint()
+      ..style = PaintingStyle.stroke
+      ..color = color.withValues(alpha: 0.22);
+    final fill = Paint()
+      ..style = PaintingStyle.fill
+      ..color = color.withValues(alpha: 0.28);
+    final outline = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = color;
     final points = <Offset>[];
     final count = values.length;
     for (var i = 0; i < count; i++) {
@@ -496,7 +965,12 @@ class _RadarPainter extends CustomPainter {
     final valuePoints = <Offset>[];
     for (var i = 0; i < count; i++) {
       final angle = -math.pi / 2 + (2 * math.pi * i / count);
-      valuePoints.add(center + Offset(math.cos(angle), math.sin(angle)) * radius * values[i].clamp(0.08, 1));
+      valuePoints.add(
+        center +
+            Offset(math.cos(angle), math.sin(angle)) *
+                radius *
+                values[i].clamp(0.08, 1),
+      );
     }
     final valuePath = Path()..addPolygon(valuePoints, true);
     canvas.drawPath(valuePath, fill);
@@ -504,7 +978,8 @@ class _RadarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _RadarPainter oldDelegate) => oldDelegate.values != values || oldDelegate.color != color;
+  bool shouldRepaint(covariant _RadarPainter oldDelegate) =>
+      oldDelegate.values != values || oldDelegate.color != color;
 }
 
 class PerfumeTile extends StatelessWidget {
@@ -512,7 +987,12 @@ class PerfumeTile extends StatelessWidget {
   final VoidCallback? onTap;
   final Widget? trailing;
 
-  const PerfumeTile({super.key, required this.perfume, this.onTap, this.trailing});
+  const PerfumeTile({
+    super.key,
+    required this.perfume,
+    this.onTap,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -521,7 +1001,10 @@ class PerfumeTile extends StatelessWidget {
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: _PerfumeImage(url: perfume.imageUrl, size: 56),
-        title: Text(perfume.name, style: const TextStyle(fontWeight: FontWeight.w700)),
+        title: Text(
+          perfume.name,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 4),
           child: Text(perfume.brand ?? 'Marca não informada'),
@@ -564,9 +1047,11 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
     try {
       final collection = await widget.repository.collection();
       if (mounted) {
-        setState(() => _inCollection = collection.any(
-              (item) => item.externalId == widget.perfume.externalId,
-            ));
+        setState(
+          () => _inCollection = collection.any(
+            (item) => item.externalId == widget.perfume.externalId,
+          ),
+        );
       }
     } catch (_) {
       // A falha ao carregar a coleção não impede a consulta dos detalhes.
@@ -579,9 +1064,9 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
       await widget.repository.addToCollection(perfume.externalId);
       if (mounted) {
         setState(() => _inCollection = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Adicionado à coleção.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Adicionado à coleção.')));
       }
     } catch (_) {
       if (mounted) {
@@ -611,11 +1096,16 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(20),
-                  child: Center(child: _PerfumeImage(url: perfume.imageUrl, size: 220)),
+                  child: Center(
+                    child: _PerfumeImage(url: perfume.imageUrl, size: 220),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
-              Text(perfume.name, style: Theme.of(context).textTheme.headlineSmall),
+              Text(
+                perfume.name,
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
               const SizedBox(height: 4),
               Text(perfume.brand ?? 'Marca não informada'),
               const SizedBox(height: 16),
@@ -623,18 +1113,45 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  if (perfume.rating != null) _InfoChip(icon: Icons.star_outline, text: '${perfume.rating}'),
-                  if (perfume.releaseYear != null) _InfoChip(icon: Icons.calendar_today_outlined, text: '${perfume.releaseYear}'),
-                  if (perfume.gender != null) _InfoChip(icon: Icons.person_outline, text: perfumeLabel(perfume.gender)),
-                  if (perfume.oilType != null) _InfoChip(icon: Icons.water_drop_outlined, text: perfumeLabel(perfume.oilType)),
-                  if (perfume.longevity != null) _InfoChip(icon: Icons.timer_outlined, text: 'Duração: ${perfumeLabel(perfume.longevity)}'),
-                  if (perfume.sillage != null) _InfoChip(icon: Icons.air, text: 'Projeção: ${perfumeLabel(perfume.sillage)}'),
+                  if (perfume.rating != null)
+                    _InfoChip(
+                      icon: Icons.star_outline,
+                      text: '${perfume.rating}',
+                    ),
+                  if (perfume.releaseYear != null)
+                    _InfoChip(
+                      icon: Icons.calendar_today_outlined,
+                      text: '${perfume.releaseYear}',
+                    ),
+                  if (perfume.gender != null)
+                    _InfoChip(
+                      icon: Icons.person_outline,
+                      text: perfumeLabel(perfume.gender),
+                    ),
+                  if (perfume.oilType != null)
+                    _InfoChip(
+                      icon: Icons.water_drop_outlined,
+                      text: perfumeLabel(perfume.oilType),
+                    ),
+                  if (perfume.longevity != null)
+                    _InfoChip(
+                      icon: Icons.timer_outlined,
+                      text: 'Duração: ${perfumeLabel(perfume.longevity)}',
+                    ),
+                  if (perfume.sillage != null)
+                    _InfoChip(
+                      icon: Icons.air,
+                      text: 'Projeção: ${perfumeLabel(perfume.sillage)}',
+                    ),
                 ],
               ),
               if (perfume.notes.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 22),
-                  child: Text('Notas olfativas', style: Theme.of(context).textTheme.titleLarge),
+                  child: Text(
+                    'Notas olfativas',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
               if (perfume.notes.isNotEmpty)
                 Padding(
@@ -643,14 +1160,16 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
                 ),
               const SizedBox(height: 28),
               FilledButton.icon(
-                onPressed: _saving || _inCollection ? null : () => _add(perfume),
+                onPressed: _saving || _inCollection
+                    ? null
+                    : () => _add(perfume),
                 icon: Icon(_inCollection ? Icons.check : Icons.favorite),
                 label: Text(
                   _saving
                       ? 'Salvando...'
                       : _inCollection
-                          ? 'Na coleção'
-                          : 'Adicionar à coleção',
+                      ? 'Na coleção'
+                      : 'Adicionar à coleção',
                 ),
               ),
               const SizedBox(height: 12),
@@ -683,9 +1202,285 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Chip(
-        avatar: const Icon(Icons.circle, size: 10, color: EssenzaColors.deepOcean),
-        label: Text(text),
-      );
+    avatar: const Icon(Icons.circle, size: 10, color: EssenzaColors.deepOcean),
+    label: Text(text),
+  );
+}
+
+class _WishlistView extends StatelessWidget {
+  const _WishlistView();
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: ListView(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+      children: [
+        Text(
+          'Quero experimentar',
+          style: Theme.of(context).textTheme.headlineLarge,
+        ),
+        const SizedBox(height: 6),
+        const Text('Perfumes que podem ser sua próxima assinatura.'),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: EssenzaColors.burgundyDark,
+            borderRadius: BorderRadius.circular(26),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'MELHOR PRÓXIMA COMPRA',
+                style: TextStyle(
+                  color: EssenzaColors.gold,
+                  fontSize: 11,
+                  letterSpacing: 1.3,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Versace Pour Homme',
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  color: Colors.white,
+                  fontSize: 25,
+                ),
+              ),
+              SizedBox(height: 7),
+              Text(
+                'É o perfume da sua wishlist que mais aumenta a versatilidade da sua coleção.',
+                style: TextStyle(color: Colors.white70, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        ...const [
+          ('Acqua di Giò', 'Giorgio Armani', 94, 72),
+          ('Dylan Blue', 'Versace', 86, 81),
+          ('Bleu de Chanel', 'Chanel', 91, 67),
+        ].map(
+          (p) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 84,
+                      decoration: BoxDecoration(
+                        color: EssenzaColors.backgroundMuted,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: const Icon(
+                        Icons.water_drop_outlined,
+                        color: EssenzaColors.gold,
+                        size: 34,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            p.$2,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: EssenzaColors.muted,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            p.$1,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _MiniMetric(
+                                  label: 'Compatibilidade',
+                                  value: '${p.$3}%',
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _MiniMetric(
+                                  label: 'Valor coleção',
+                                  value: '${p.$4}%',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.favorite,
+                      color: EssenzaColors.burgundy,
+                      size: 21,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MiniMetric extends StatelessWidget {
+  final String label, value;
+  const _MiniMetric({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        label,
+        style: const TextStyle(fontSize: 9, color: EssenzaColors.muted),
+      ),
+      Text(
+        value,
+        style: const TextStyle(
+          fontSize: 15,
+          color: EssenzaColors.burgundy,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    ],
+  );
+}
+
+class _ProfileView extends StatelessWidget {
+  final Future<void> Function() onLogout;
+  const _ProfileView({required this.onLogout});
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: ListView(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+      children: [
+        Text('Perfil', style: Theme.of(context).textTheme.headlineLarge),
+        const SizedBox(height: 24),
+        const Row(
+          children: [
+            CircleAvatar(
+              radius: 34,
+              backgroundColor: EssenzaColors.backgroundMuted,
+              child: Icon(
+                Icons.person_outline,
+                size: 34,
+                color: EssenzaColors.burgundy,
+              ),
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Mateus',
+                    style: TextStyle(
+                      fontFamily: 'serif',
+                      fontSize: 24,
+                      color: EssenzaColors.burgundyDark,
+                    ),
+                  ),
+                  Text('Curador da própria coleção'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: EssenzaColors.border),
+          ),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _ProfileStat('17', 'perfumes'),
+              _ProfileStat('8', 'favoritos'),
+              _ProfileStat('13', 'wishlist'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        ...const [
+          (Icons.tune, 'Preferências olfativas'),
+          (Icons.history_outlined, 'Diário de perfumes'),
+          (Icons.bar_chart_outlined, 'Estatísticas'),
+          (Icons.person_outline, 'Minha conta'),
+          (Icons.settings_outlined, 'Configurações'),
+          (Icons.shield_outlined, 'Privacidade'),
+          (Icons.info_outline, 'Sobre o Essenza'),
+        ].map(
+          (item) => ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: 3,
+            ),
+            leading: Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: EssenzaColors.backgroundMuted,
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(item.$1, color: EssenzaColors.burgundy, size: 21),
+            ),
+            title: Text(
+              item.$2,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            trailing: const Icon(
+              Icons.chevron_right,
+              color: EssenzaColors.muted,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        OutlinedButton.icon(
+          onPressed: onLogout,
+          icon: const Icon(Icons.logout),
+          label: const Text('Sair da conta'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ProfileStat extends StatelessWidget {
+  final String value, label;
+  const _ProfileStat(this.value, this.label);
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Text(
+        value,
+        style: const TextStyle(
+          fontFamily: 'serif',
+          fontSize: 25,
+          color: EssenzaColors.burgundy,
+        ),
+      ),
+      Text(
+        label,
+        style: const TextStyle(fontSize: 11, color: EssenzaColors.muted),
+      ),
+    ],
+  );
 }
 
 class _EmptyState extends StatelessWidget {
@@ -693,24 +1488,32 @@ class _EmptyState extends StatelessWidget {
   final String title;
   final String message;
 
-  const _EmptyState({required this.icon, required this.title, required this.message});
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 48, color: EssenzaColors.ocean),
-              const SizedBox(height: 16),
-              Text(title, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              Text(message, textAlign: TextAlign.center),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 48, color: EssenzaColors.ocean),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-        ),
-      );
+          const SizedBox(height: 8),
+          Text(message, textAlign: TextAlign.center),
+        ],
+      ),
+    ),
+  );
 }
 
 class _PerfumeImage extends StatelessWidget {
@@ -721,15 +1524,18 @@ class _PerfumeImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: size,
-        height: size,
-        child: url == null || url!.isEmpty
-            ? const Icon(Icons.local_florist, size: 40, color: EssenzaColors.ocean)
-            : Image.network(
-                url!,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) =>
-                    const Icon(Icons.local_florist, size: 40, color: EssenzaColors.ocean),
-              ),
-      );
+    width: size,
+    height: size,
+    child: url == null || url!.isEmpty
+        ? const Icon(Icons.local_florist, size: 40, color: EssenzaColors.ocean)
+        : Image.network(
+            url!,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) => const Icon(
+              Icons.local_florist,
+              size: 40,
+              color: EssenzaColors.ocean,
+            ),
+          ),
+  );
 }
