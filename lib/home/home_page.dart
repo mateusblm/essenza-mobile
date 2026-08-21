@@ -151,19 +151,6 @@ class _DashboardViewState extends State<_DashboardView> {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Theme.of(context).colorScheme.outline),
-                    ),
-                    child: Icon(
-                      Icons.notifications_none,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -1437,7 +1424,24 @@ class _ProfileViewState extends State<_ProfileView> {
     child: ListView(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
       children: [
-        Text('Perfil', style: Theme.of(context).textTheme.headlineLarge),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Perfil',
+                style: Theme.of(context).textTheme.headlineLarge,
+              ),
+            ),
+            _ThemeToggle(
+              dark: widget.themeMode == ThemeMode.dark,
+              onPressed: () => widget.onThemeModeChanged(
+                widget.themeMode == ThemeMode.dark
+                    ? ThemeMode.light
+                    : ThemeMode.dark,
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 24),
         Row(
           children: [
@@ -1495,15 +1499,7 @@ class _ProfileViewState extends State<_ProfileView> {
           ),
         ),
         const SizedBox(height: 18),
-        _ThemeModeTile(
-          themeMode: widget.themeMode,
-          onChanged: widget.onThemeModeChanged,
-        ),
-        const SizedBox(height: 6),
         ...const [
-          (Icons.tune, 'Preferências olfativas'),
-          (Icons.history_outlined, 'Diário de perfumes'),
-          (Icons.bar_chart_outlined, 'Estatísticas'),
           (Icons.person_outline, 'Minha conta'),
           (Icons.settings_outlined, 'Configurações'),
           (Icons.shield_outlined, 'Privacidade'),
@@ -1548,52 +1544,31 @@ class _ProfileViewState extends State<_ProfileView> {
   );
 }
 
-class _ThemeModeTile extends StatelessWidget {
-  final ThemeMode themeMode;
-  final ValueChanged<ThemeMode> onChanged;
+class _ThemeToggle extends StatelessWidget {
+  final bool dark;
+  final VoidCallback onPressed;
 
-  const _ThemeModeTile({required this.themeMode, required this.onChanged});
+  const _ThemeToggle({required this.dark, required this.onPressed});
 
   @override
-  Widget build(BuildContext context) => ListTile(
-    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-    leading: Container(
-      width: 42,
-      height: 42,
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(13),
+  Widget build(BuildContext context) => Material(
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    shape: const CircleBorder(),
+    child: InkWell(
+      onTap: onPressed,
+      customBorder: const CircleBorder(),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Icon(
+          dark ? Icons.nightlight_round : Icons.wb_sunny_outlined,
+          color: Theme.of(context).colorScheme.primary,
+          size: 22,
+        ),
       ),
-      child: Icon(
-        Icons.brightness_6_outlined,
-        color: Theme.of(context).colorScheme.primary,
-        size: 21,
-      ),
-    ),
-    title: const Text(
-      'Tema',
-      style: TextStyle(fontWeight: FontWeight.w600),
-    ),
-    subtitle: Text(_themeModeLabel(themeMode)),
-    trailing: PopupMenuButton<ThemeMode>(
-      onSelected: onChanged,
-      itemBuilder: (context) => ThemeMode.values
-          .map(
-            (mode) => PopupMenuItem(
-              value: mode,
-              child: Text(_themeModeLabel(mode)),
-            ),
-          )
-          .toList(),
     ),
   );
 }
-
-String _themeModeLabel(ThemeMode mode) => switch (mode) {
-  ThemeMode.system => 'Preferência do sistema',
-  ThemeMode.light => 'Claro',
-  ThemeMode.dark => 'Escuro',
-};
 
 class _ProfileIdentityCard extends StatelessWidget {
   final CollectionInsights? insights;
