@@ -40,6 +40,7 @@ class _HomePageState extends State<HomePage> {
           repository: widget.repository,
           user: widget.user,
           onExplore: () => setState(() => _tab = 1),
+          onProfile: () => setState(() => _tab = 4),
         ),
         1 => SearchView(
           repository: widget.repository,
@@ -95,7 +96,8 @@ class _DashboardView extends StatefulWidget {
   final CatalogRepository repository;
   final User? user;
   final VoidCallback onExplore;
-  const _DashboardView({required this.repository, this.user, required this.onExplore});
+  final VoidCallback onProfile;
+  const _DashboardView({required this.repository, this.user, required this.onExplore, required this.onProfile});
   @override
   State<_DashboardView> createState() => _DashboardViewState();
 }
@@ -166,6 +168,7 @@ class _DashboardViewState extends State<_DashboardView> {
               _DnaCard(
                 profile: profile,
                 loading: snapshot.connectionState == ConnectionState.waiting,
+                onIdentityTap: widget.onProfile,
               ),
               const SizedBox(height: 16),
               _CoverageCard(
@@ -209,7 +212,8 @@ class _DashboardViewState extends State<_DashboardView> {
 class _DnaCard extends StatelessWidget {
   final List<CollectionInsightScore> profile;
   final bool loading;
-  const _DnaCard({required this.profile, required this.loading});
+  final VoidCallback onIdentityTap;
+  const _DnaCard({required this.profile, required this.loading, required this.onIdentityTap});
   @override
   Widget build(BuildContext context) {
     final fallback = const [
@@ -219,9 +223,10 @@ class _DnaCard extends StatelessWidget {
       ('Especiado', 13.0),
       ('Âmbar', 11.0),
     ];
-    final values = profile.isEmpty
+    final available = profile.where((item) => item.percentage > 0).toList();
+    final values = available.isEmpty
         ? fallback
-        : profile.take(5).map((e) => (e.label, e.percentage)).toList();
+        : available.take(5).map((e) => (e.label, e.percentage)).toList();
     final topLabels = values.take(3).map((item) => item.$1).join(' · ');
     final highest = values.fold<double>(
       1,
@@ -259,8 +264,8 @@ class _DnaCard extends StatelessWidget {
                       Expanded(
                         child: FractionallySizedBox(
                           alignment: Alignment.centerLeft,
-                          widthFactor: (.58 + ((item.$2 / highest) * .42))
-                              .clamp(.58, 1),
+                          widthFactor: (.25 + ((item.$2 / highest) * .75))
+                              .clamp(.25, 1),
                           child: Container(
                             height: 34,
                             alignment: Alignment.center,
@@ -307,6 +312,11 @@ class _DnaCard extends StatelessWidget {
                 fontSize: 13,
                 height: 1.4,
               ),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: onIdentityTap,
+              child: const Text('Ver sua identidade'),
             ),
           ],
         ),
@@ -1382,11 +1392,25 @@ class _MiniMetric extends StatelessWidget {
   );
 }
 
-class _ProfileView extends StatelessWidget {
+class _ProfileView extends StatefulWidget {
   final CatalogRepository repository;
   final User? user;
   final Future<void> Function() onLogout;
   const _ProfileView({required this.repository, this.user, required this.onLogout});
+
+  @override
+  State<_ProfileView> createState() => _ProfileViewState();
+}
+
+class _ProfileViewState extends State<_ProfileView> {
+  late Future<CollectionInsights> _insights;
+
+  @override
+  void initState() {
+    super.initState();
+    _insights = widget.repository.collectionInsights();
+  }
+
   @override
   Widget build(BuildContext context) => SafeArea(
     child: ListView(
@@ -1411,14 +1435,14 @@ class _ProfileView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user?.name ?? 'Seu perfil',
+                    widget.user?.name ?? 'Seu perfil',
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 24,
                       color: EssenzaColors.burgundyDark,
                     ),
                   ),
-                  Text(user?.email ?? 'Sua coleção pessoal'),
+                  Text(widget.user?.email ?? 'Sua coleção pessoal'),
                 ],
               ),
             ),
@@ -1442,6 +1466,14 @@ class _ProfileView extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 22),
+        FutureBuilder<CollectionInsights>(
+          future: _insights,
+          builder: (context, snapshot) => _ProfileIdentityCard(
+            insights: snapshot.data,
+            loading: snapshot.connectionState == ConnectionState.waiting,
+          ),
+        ),
+        const SizedBox(height: 18),
         ...const [
           (Icons.tune, 'Preferências olfativas'),
           (Icons.history_outlined, 'Diário de perfumes'),
@@ -1477,11 +1509,120 @@ class _ProfileView extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: onLogout,
+          onPressed: widget.onLogout,
           icon: const Icon(Icons.logout),
           label: const Text('Sair da conta'),
         ),
       ],
+    ),
+  );
+}
+
+class _ProfileIdentityCard extends StatelessWidget {
+  final CollectionInsights? insights;
+  final bool loading;
+
+  const _ProfileIdentityCard({required this.insights, required this.loading});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = insights?.olfactiveProfile ?? const <CollectionInsightScore>[];
+    final dominant = profile.isEmpty ? null : profile.first;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Sua identidade olfativa',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 4),
+            if (loading)
+              const LinearProgressIndicator()
+            else if (dominant == null)
+              const Text(
+                'Adicione perfumes para descobrir sua identidade.',
+                style: TextStyle(color: EssenzaColors.muted),
+              )
+            else ...[
+              Text(
+                _identityTitle(dominant.label),
+                style: TextStyle(
+                  fontFamily: 'serif',
+                  fontSize: 21,
+                  color: EssenzaColors.burgundyDark,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _identityDescription(dominant.label),
+                style: const TextStyle(
+                  color: EssenzaColors.muted,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (insights!.climates.isNotEmpty)
+                _IdentityDetail(
+                  label: 'Combina com',
+                  value: insights!.climates.take(2).map((item) => item.label).join(' · '),
+                ),
+              if (insights!.occasions.isNotEmpty)
+                _IdentityDetail(
+                  label: 'Para',
+                  value: insights!.occasions.take(3).join(' · '),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _identityTitle(String label) {
+    final value = label.toLowerCase();
+    if (value.contains('amadeir')) return 'Elegante e amadeirada';
+    if (value.contains('floral')) return 'Delicada e floral';
+    if (value.contains('fresco')) return 'Leve e refrescante';
+    if (value.contains('doce')) return 'Envolvente e doce';
+    if (value.contains('oriental')) return 'Marcante e oriental';
+    return 'Com presença ${label.toLowerCase()}';
+  }
+
+  String _identityDescription(String label) {
+    final value = label.toLowerCase();
+    if (value.contains('amadeir')) return 'Você prefere fragrâncias sofisticadas e marcantes.';
+    if (value.contains('floral')) return 'Você prefere fragrâncias delicadas e expressivas.';
+    if (value.contains('fresco')) return 'Você prefere fragrâncias leves e versáteis.';
+    if (value.contains('doce')) return 'Você prefere fragrâncias quentes e envolventes.';
+    if (value.contains('oriental')) return 'Você prefere fragrâncias intensas e memoráveis.';
+    return 'Sua coleção revela um estilo ${label.toLowerCase()}.';
+  }
+}
+
+class _IdentityDetail extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _IdentityDetail({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: RichText(
+      text: TextSpan(
+        style: const TextStyle(color: EssenzaColors.muted, fontSize: 13),
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          TextSpan(text: value),
+        ],
+      ),
     ),
   );
 }
