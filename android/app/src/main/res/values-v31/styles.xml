@@ -2,7 +2,8 @@
 <resources>
     <style name="LaunchTheme" parent="android:style/Theme.Light.NoTitleBar">
         <item name="android:windowSplashScreenBackground">#F7F4EF</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/transparent_splash_icon</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/essenza_trail_splash</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/ic_launcher_background</item>
         <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
 </resources>
