@@ -13,7 +13,7 @@ void main() {
 
   testWidgets('login validates fields before calling the API', (tester) async {
     final repository = MockAuthRepository();
-    await tester.pumpWidget(MaterialApp(home: LoginPage(repository: repository, onAuthenticated: () {})));
+    await tester.pumpWidget(MaterialApp(home: LoginPage(repository: repository, onAuthenticated: (_) {})));
 
     await tester.tap(find.text('Entrar'));
     await tester.pump();
@@ -27,7 +27,7 @@ void main() {
     when(() => repository.login(email: 'mateus@test.dev', password: 'senha-segura'))
         .thenAnswer((_) async => const AuthSession(token: 'jwt', user: User(name: 'Mateus', email: 'mateus@test.dev')));
     var authenticated = false;
-    await tester.pumpWidget(MaterialApp(home: LoginPage(repository: repository, onAuthenticated: () => authenticated = true)));
+    await tester.pumpWidget(MaterialApp(home: LoginPage(repository: repository, onAuthenticated: (_) => authenticated = true)));
     await tester.enterText(find.byType(TextFormField).at(0), 'mateus@test.dev');
     await tester.enterText(find.byType(TextFormField).at(1), 'senha-segura');
     await tester.tap(find.text('Entrar'));

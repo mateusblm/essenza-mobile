@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'auth/data/auth_repository.dart';
 import 'auth/presentation/login_page.dart';
+import 'auth/models/user.dart';
 import 'catalog/data/catalog_repository.dart';
 import 'diary/data/diary_repository.dart';
 import 'core/network/api_client.dart';
@@ -21,6 +22,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
   late final DiaryRepository _diary;
   bool _loading = true;
   bool _authenticated = false;
+  User? _user;
 
   @override
   void initState() {
@@ -43,7 +45,10 @@ class _EssenzaAppState extends State<EssenzaApp> {
     }
   }
 
-  void _onAuthenticated() => setState(() => _authenticated = true);
+  void _onAuthenticated(User user) => setState(() {
+    _user = user;
+    _authenticated = true;
+  });
   Future<void> _logout() async {
     await _auth.logout();
     if (mounted) setState(() => _authenticated = false);
@@ -61,6 +66,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
           ? HomePage(
               repository: _catalog,
               diaryRepository: _diary,
+              user: _user,
               onLogout: _logout,
             )
           : LoginPage(repository: _auth, onAuthenticated: _onAuthenticated),

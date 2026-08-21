@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import '../../core/network/api_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../data/auth_repository.dart';
+import '../models/user.dart';
 
 class LoginPage extends StatefulWidget {
   final AuthRepository repository;
-  final VoidCallback onAuthenticated;
+  final ValueChanged<User> onAuthenticated;
 
   const LoginPage({
     super.key,
@@ -43,19 +44,17 @@ class _LoginPageState extends State<LoginPage> {
       _error = null;
     });
     try {
-      if (_register) {
-        await widget.repository.register(
-          name: _name.text.trim(),
-          email: _email.text.trim(),
-          password: _password.text,
-        );
-      } else {
-        await widget.repository.login(
-          email: _email.text.trim(),
-          password: _password.text,
-        );
-      }
-      if (mounted) widget.onAuthenticated();
+      final session = _register
+          ? await widget.repository.register(
+              name: _name.text.trim(),
+              email: _email.text.trim(),
+              password: _password.text,
+            )
+          : await widget.repository.login(
+              email: _email.text.trim(),
+              password: _password.text,
+            );
+      if (mounted) widget.onAuthenticated(session.user);
     } on ApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {

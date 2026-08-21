@@ -9,16 +9,19 @@ import '../catalog/presentation/catalog_labels.dart';
 import '../core/theme/app_theme.dart';
 import '../diary/data/diary_repository.dart';
 import '../diary/presentation/diary_page.dart';
+import '../auth/models/user.dart';
 
 class HomePage extends StatefulWidget {
   final CatalogRepository repository;
   final DiaryRepository diaryRepository;
+  final User? user;
   final Future<void> Function() onLogout;
 
   const HomePage({
     super.key,
     required this.repository,
     required this.diaryRepository,
+    this.user,
     required this.onLogout,
   });
 
@@ -35,6 +38,7 @@ class _HomePageState extends State<HomePage> {
       body: switch (_tab) {
         0 => _DashboardView(
           repository: widget.repository,
+          user: widget.user,
           onExplore: () => setState(() => _tab = 1),
         ),
         1 => SearchView(
@@ -46,7 +50,11 @@ class _HomePageState extends State<HomePage> {
           diaryRepository: widget.diaryRepository,
         ),
         3 => const _WishlistView(),
-        _ => _ProfileView(onLogout: widget.onLogout),
+        _ => _ProfileView(
+          repository: widget.repository,
+          user: widget.user,
+          onLogout: widget.onLogout,
+        ),
       },
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
@@ -85,8 +93,9 @@ class _HomePageState extends State<HomePage> {
 
 class _DashboardView extends StatefulWidget {
   final CatalogRepository repository;
+  final User? user;
   final VoidCallback onExplore;
-  const _DashboardView({required this.repository, required this.onExplore});
+  const _DashboardView({required this.repository, this.user, required this.onExplore});
   @override
   State<_DashboardView> createState() => _DashboardViewState();
 }
@@ -123,7 +132,7 @@ class _DashboardViewState extends State<_DashboardView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Boa noite',
+                          'Boa noite${widget.user?.name == null ? '' : ', ${widget.user!.name.split(' ').first}'}',
                           style: Theme.of(context).textTheme.bodyMedium,
                         ),
                         const SizedBox(height: 2),
@@ -159,7 +168,10 @@ class _DashboardViewState extends State<_DashboardView> {
                 loading: snapshot.connectionState == ConnectionState.waiting,
               ),
               const SizedBox(height: 16),
-              _CoverageCard(onExplore: widget.onExplore),
+              _CoverageCard(
+                insights: insights,
+                onExplore: widget.onExplore,
+              ),
               const SizedBox(height: 26),
               _SectionHeader(
                 title: 'Escolhidos para você',
@@ -168,23 +180,23 @@ class _DashboardViewState extends State<_DashboardView> {
               ),
               const SizedBox(height: 14),
               SizedBox(
-                height: 172,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: const [
-                    _RecommendationPreview(
-                      name: 'Versace Pour Homme',
-                      tag: '88% compatível',
-                      icon: Icons.water_drop_outlined,
-                    ),
-                    SizedBox(width: 12),
-                    _RecommendationPreview(
-                      name: 'Acqua di Giò',
-                      tag: '82% compatível',
-                      icon: Icons.waves_outlined,
-                    ),
-                  ],
-                ),
+                height: 220,
+                child: insights == null || insights.recommendations.isEmpty
+                    ? const _EmptyState(
+                        icon: Icons.auto_awesome_outlined,
+                        title: 'Ainda sem recomendações',
+                        message: 'Adicione perfumes para receber sugestões personalizadas.',
+                      )
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: insights.recommendations.length,
+                        separatorBuilder: (_, _) => const SizedBox(width: 12),
+                        itemBuilder: (_, index) => _RecommendationPreview(
+                          name: insights.recommendations[index],
+                          tag: 'Recomendado para você',
+                          icon: Icons.water_drop_outlined,
+                        ),
+                      ),
               ),
             ],
           ),
@@ -210,6 +222,7 @@ class _DnaCard extends StatelessWidget {
     final values = profile.isEmpty
         ? fallback
         : profile.take(5).map((e) => (e.label, e.percentage)).toList();
+    final topLabels = values.take(3).map((item) => item.$1).join(' · ');
     final highest = values.fold<double>(
       1,
       (value, item) => math.max(value, item.$2),
@@ -225,8 +238,8 @@ class _DnaCard extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 5),
-            const Text(
-              'Amadeirado · Aromático · Doce',
+            Text(
+              topLabels.isEmpty ? 'Seu perfil está sendo analisado' : topLabels,
               style: TextStyle(
                 fontFamily: 'serif',
                 color: EssenzaColors.burgundyDark,
@@ -285,8 +298,10 @@ class _DnaCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 6),
-            const Text(
-              'Sua coleção possui forte presença amadeirada e aromática.',
+            Text(
+              values.isEmpty
+                  ? 'Adicione perfumes para descobrir seu DNA olfativo.'
+                  : 'Sua coleção possui maior presença em ${values.first.$1.toLowerCase()}.',
               style: TextStyle(
                 color: EssenzaColors.muted,
                 fontSize: 13,
@@ -331,8 +346,19 @@ class _DnaCard extends StatelessWidget {
 }
 
 class _CoverageCard extends StatelessWidget {
+  final CollectionInsights? insights;
   final VoidCallback onExplore;
-  const _CoverageCard({required this.onExplore});
+  const _CoverageCard({required this.insights, required this.onExplore});
+
+  int get _coverageScore {
+    final climates = insights?.climates ?? const <CollectionInsightScore>[];
+    if (climates.isEmpty) return 0;
+    return (climates.map((e) => e.percentage).reduce((a, b) => a + b) /
+            climates.length)
+        .round()
+        .clamp(0, 100);
+  }
+
   @override
   Widget build(BuildContext context) => Card(
     child: Padding(
@@ -356,8 +382,8 @@ class _CoverageCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Text(
-                '72',
+              Text(
+                _coverageScore.toString(),
                 style: TextStyle(
                   fontFamily: 'serif',
                   color: EssenzaColors.burgundy,
@@ -371,26 +397,20 @@ class _CoverageCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          ...const [
-            ('Trabalho', 1.0),
-            ('Encontro', .9),
-            ('Festa', .8),
-            ('Calor', .4),
-            ('Frio', 1.0),
-          ].map(
+          ...?insights?.climates.map(
             (e) => Padding(
               padding: const EdgeInsets.only(bottom: 9),
               child: Row(
                 children: [
                   SizedBox(
                     width: 72,
-                    child: Text(e.$1, style: const TextStyle(fontSize: 13)),
+                    child: Text(e.label, style: const TextStyle(fontSize: 13)),
                   ),
                   Expanded(
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: LinearProgressIndicator(
-                        value: e.$2,
+                        value: (e.percentage / 100).clamp(0, 1),
                         minHeight: 6,
                         backgroundColor: EssenzaColors.backgroundMuted,
                         color: EssenzaColors.burgundy,
@@ -403,7 +423,7 @@ class _CoverageCard extends StatelessWidget {
           ),
           const Divider(height: 28),
           const Text(
-            'SUA PRINCIPAL LACUNA',
+            'PRINCIPAL OPORTUNIDADE',
             style: TextStyle(
               color: EssenzaColors.gold,
               fontSize: 11,
@@ -412,8 +432,10 @@ class _CoverageCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Perfumes frescos para dias quentes.',
+          Text(
+            (insights?.recommendations.isNotEmpty ?? false)
+                ? insights!.recommendations.first
+                : 'Adicione mais perfumes para gerar recomendações.',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 14),
@@ -660,6 +682,7 @@ class _SearchViewState extends State<SearchView> {
       ),
     );
   }
+
 }
 
 class CollectionView extends StatefulWidget {
@@ -1360,8 +1383,10 @@ class _MiniMetric extends StatelessWidget {
 }
 
 class _ProfileView extends StatelessWidget {
+  final CatalogRepository repository;
+  final User? user;
   final Future<void> Function() onLogout;
-  const _ProfileView({required this.onLogout});
+  const _ProfileView({required this.repository, this.user, required this.onLogout});
   @override
   Widget build(BuildContext context) => SafeArea(
     child: ListView(
@@ -1369,7 +1394,7 @@ class _ProfileView extends StatelessWidget {
       children: [
         Text('Perfil', style: Theme.of(context).textTheme.headlineLarge),
         const SizedBox(height: 24),
-        const Row(
+        Row(
           children: [
             CircleAvatar(
               radius: 34,
@@ -1386,14 +1411,14 @@ class _ProfileView extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Mateus',
+                    user?.name ?? 'Seu perfil',
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 24,
                       color: EssenzaColors.burgundyDark,
                     ),
                   ),
-                  Text('Curador da própria coleção'),
+                  Text(user?.email ?? 'Sua coleção pessoal'),
                 ],
               ),
             ),
@@ -1495,24 +1520,47 @@ class _EmptyState extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.hasBoundedHeight && constraints.maxHeight < 150;
+      final theme = Theme.of(context).textTheme;
+      final content = Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 48, color: EssenzaColors.ocean),
-          const SizedBox(height: 16),
+          Icon(icon, size: compact ? 28 : 48, color: EssenzaColors.ocean),
+          SizedBox(height: compact ? 4 : 16),
           Text(
             title,
+            maxLines: compact ? 1 : null,
+            overflow: compact ? TextOverflow.ellipsis : null,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
+            style: compact ? theme.titleMedium : theme.titleLarge,
           ),
-          const SizedBox(height: 8),
-          Text(message, textAlign: TextAlign.center),
+          SizedBox(height: compact ? 4 : 8),
+          Text(
+            message,
+            maxLines: compact ? 2 : null,
+            overflow: compact ? TextOverflow.ellipsis : null,
+            textAlign: TextAlign.center,
+            style: compact ? theme.bodySmall : null,
+          ),
         ],
-      ),
-    ),
+      );
+      return Center(
+        child: compact
+            ? FittedBox(
+                fit: BoxFit.scaleDown,
+                child: SizedBox(
+                  width: constraints.maxWidth - 32,
+                  child: content,
+                ),
+              )
+            : Padding(
+                padding: const EdgeInsets.all(32),
+                child: content,
+              ),
+      );
+    },
   );
 }
 
