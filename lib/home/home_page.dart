@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../catalog/data/catalog_repository.dart';
 import '../catalog/models/perfume.dart';
@@ -18,6 +20,8 @@ class HomePage extends StatefulWidget {
   final Future<void> Function() onLogout;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final Future<Uint8List?> Function() loadAvatar;
+  final Future<void> Function(Uint8List bytes, {required String filename, required String contentType}) uploadAvatar;
 
   const HomePage({
     super.key,
@@ -27,6 +31,8 @@ class HomePage extends StatefulWidget {
     required this.onLogout,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.loadAvatar,
+    required this.uploadAvatar,
   });
 
   @override
@@ -61,6 +67,8 @@ class _HomePageState extends State<HomePage> {
           onLogout: widget.onLogout,
           themeMode: widget.themeMode,
           onThemeModeChanged: widget.onThemeModeChanged,
+          loadAvatar: widget.loadAvatar,
+          uploadAvatar: widget.uploadAvatar,
         ),
       },
       bottomNavigationBar: NavigationBar(
@@ -1397,6 +1405,8 @@ class _ProfileView extends StatefulWidget {
   final Future<void> Function() onLogout;
   final ThemeMode themeMode;
   final ValueChanged<ThemeMode> onThemeModeChanged;
+  final Future<Uint8List?> Function() loadAvatar;
+  final Future<void> Function(Uint8List bytes, {required String filename, required String contentType}) uploadAvatar;
 
   const _ProfileView({
     required this.repository,
@@ -1404,6 +1414,8 @@ class _ProfileView extends StatefulWidget {
     required this.onLogout,
     required this.themeMode,
     required this.onThemeModeChanged,
+    required this.loadAvatar,
+    required this.uploadAvatar,
   });
 
   @override
@@ -1412,11 +1424,35 @@ class _ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<_ProfileView> {
   late Future<CollectionInsights> _insights;
+  late Future<Uint8List?> _avatar;
 
   @override
   void initState() {
     super.initState();
     _insights = widget.repository.collectionInsights();
+    _avatar = widget.loadAvatar();
+  }
+
+  Future<void> _pickAvatar() async {
+    final file = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 85,
+    );
+    if (file == null) return;
+    try {
+      final bytes = await file.readAsBytes();
+      final contentType = file.mimeType ?? 'image/jpeg';
+      await widget.uploadAvatar(bytes, filename: file.name, contentType: contentType);
+      if (mounted) setState(() => _avatar = Future.value(bytes));
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.toString())),
+        );
+      }
+    }
   }
 
   @override
@@ -1445,13 +1481,18 @@ class _ProfileViewState extends State<_ProfileView> {
         const SizedBox(height: 24),
         Row(
           children: [
-            CircleAvatar(
-              radius: 34,
-              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Icon(
-                Icons.person_outline,
-                size: 34,
-                color: Theme.of(context).colorScheme.primary,
+            FutureBuilder<Uint8List?>(
+              future: _avatar,
+              builder: (context, snapshot) => GestureDetector(
+                onTap: _pickAvatar,
+                child: CircleAvatar(
+                  radius: 34,
+                  backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  backgroundImage: snapshot.data == null ? null : MemoryImage(snapshot.data!),
+                  child: snapshot.data == null
+                      ? Icon(Icons.add_a_photo_outlined, size: 25, color: Theme.of(context).colorScheme.primary)
+                      : null,
+                ),
               ),
             ),
             SizedBox(width: 16),
