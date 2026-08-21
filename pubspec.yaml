@@ -55,9 +55,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/images/essenza_logo_app.png
-  adaptive_icon_background: '#F7F4EF'
-  adaptive_icon_foreground: assets/images/essenza_trails.png
+  image_path: assets/images/app_icons/icon_1024.png
+  background_color_ios: '#F7F4EF'
   remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
@@ -74,6 +73,7 @@ flutter:
   assets:
     - assets/images/essenza_logo_app.png
     - assets/images/essenza_trails.png
+    - assets/images/app_icons/essenza_icon_1024_transparent.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
