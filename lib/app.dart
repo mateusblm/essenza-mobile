@@ -24,7 +24,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
   bool _loading = true;
   bool _authenticated = false;
   User? _user;
-  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode _themeMode = ThemeMode.light;
 
   @override
   void initState() {
@@ -44,7 +44,9 @@ class _EssenzaAppState extends State<EssenzaApp> {
     if (mounted) {
       setState(() {
         _authenticated = token != null;
-        if (savedTheme != null && savedTheme < ThemeMode.values.length) {
+        if (savedTheme != null &&
+            savedTheme >= ThemeMode.light.index &&
+            savedTheme < ThemeMode.values.length) {
           _themeMode = ThemeMode.values[savedTheme];
         }
         _loading = false;
