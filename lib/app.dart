@@ -80,8 +80,8 @@ class _SplashView extends StatelessWidget {
           children: [
             Image.asset(
               'assets/images/essenza_trails.png',
-              width: 132,
-              height: 210,
+              width: 96,
+              height: 154,
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
