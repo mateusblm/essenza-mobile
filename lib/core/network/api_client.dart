@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../storage/token_store.dart';
@@ -32,6 +33,28 @@ class ApiClient {
   Future<void> delete(String path) async {
     final response = await httpClient.delete(Uri.parse('$baseUrl$path'), headers: await _headers());
     _decode(response);
+  }
+
+  Future<Uint8List> getBytes(String path) async {
+    final response = await httpClient.get(Uri.parse('$baseUrl$path'), headers: await _headers());
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException(response.statusCode, 'Não foi possível carregar a imagem.');
+    }
+    return response.bodyBytes;
+  }
+
+  Future<void> putMultipart(String path, Uint8List bytes, {required String filename, required String contentType}) async {
+    final token = await tokenStore.read();
+    final request = http.MultipartRequest('PUT', Uri.parse('$baseUrl$path'))
+      ..headers['Accept'] = 'application/json'
+      ..files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename, contentType: http.MediaType.parse(contentType)));
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    final response = await http.Response.fromStream(await request.send());
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body);
+      final body = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      throw ApiException(response.statusCode, body['detail'] as String? ?? body['message'] as String? ?? 'Não foi possível salvar a imagem.');
+    }
   }
 
   Future<Map<String, String>> _headers() async {

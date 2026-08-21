@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:typed_data';
 import 'auth/data/auth_repository.dart';
 import 'auth/presentation/login_page.dart';
 import 'auth/models/user.dart';
@@ -87,6 +88,8 @@ class _EssenzaAppState extends State<EssenzaApp> {
               onLogout: _logout,
               themeMode: _themeMode,
               onThemeModeChanged: _setThemeMode,
+              loadAvatar: _auth.avatar,
+              uploadAvatar: _auth.uploadAvatar,
             )
           : LoginPage(repository: _auth, onAuthenticated: _onAuthenticated),
     );
