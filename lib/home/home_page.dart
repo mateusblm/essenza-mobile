@@ -1500,9 +1500,6 @@ class _ProfileViewState extends State<_ProfileView> {
         ),
         const SizedBox(height: 18),
         ...const [
-          (Icons.tune, 'Preferências olfativas'),
-          (Icons.history_outlined, 'Diário de perfumes'),
-          (Icons.bar_chart_outlined, 'Estatísticas'),
           (Icons.person_outline, 'Minha conta'),
           (Icons.settings_outlined, 'Configurações'),
           (Icons.shield_outlined, 'Privacidade'),
