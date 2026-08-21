@@ -151,19 +151,6 @@ class _DashboardViewState extends State<_DashboardView> {
                       ],
                     ),
                   ),
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Theme.of(context).colorScheme.outline),
-                    ),
-                    child: Icon(
-                      Icons.notifications_none,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 6),
