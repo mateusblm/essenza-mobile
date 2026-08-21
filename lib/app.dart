@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'auth/data/auth_repository.dart';
 import 'auth/presentation/login_page.dart';
 import 'auth/models/user.dart';
@@ -23,6 +24,7 @@ class _EssenzaAppState extends State<EssenzaApp> {
   bool _loading = true;
   bool _authenticated = false;
   User? _user;
+  ThemeMode _themeMode = ThemeMode.system;
 
   @override
   void initState() {
@@ -37,12 +39,23 @@ class _EssenzaAppState extends State<EssenzaApp> {
 
   Future<void> _restoreSession() async {
     final token = await _store.read();
+    final preferences = await SharedPreferences.getInstance();
+    final savedTheme = preferences.getInt('essenza.theme.mode');
     if (mounted) {
       setState(() {
         _authenticated = token != null;
+        if (savedTheme != null && savedTheme < ThemeMode.values.length) {
+          _themeMode = ThemeMode.values[savedTheme];
+        }
         _loading = false;
       });
     }
+  }
+
+  Future<void> _setThemeMode(ThemeMode mode) async {
+    setState(() => _themeMode = mode);
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setInt('essenza.theme.mode', mode.index);
   }
 
   void _onAuthenticated(User user) => setState(() {
@@ -60,6 +73,8 @@ class _EssenzaAppState extends State<EssenzaApp> {
       title: 'Essenza',
       debugShowCheckedModeBanner: false,
       theme: EssenzaTheme.light(),
+      darkTheme: EssenzaTheme.dark(),
+      themeMode: _themeMode,
       home: _loading
           ? const _SplashView()
           : _authenticated
@@ -68,6 +83,8 @@ class _EssenzaAppState extends State<EssenzaApp> {
               diaryRepository: _diary,
               user: _user,
               onLogout: _logout,
+              themeMode: _themeMode,
+              onThemeModeChanged: _setThemeMode,
             )
           : LoginPage(repository: _auth, onAuthenticated: _onAuthenticated),
     );
@@ -91,19 +108,22 @@ class _SplashView extends StatelessWidget {
               fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'ESSENZA',
               style: TextStyle(
                 fontFamily: 'serif',
                 fontSize: 32,
                 letterSpacing: 6,
-                color: EssenzaColors.burgundyDark,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Sua coleção. Seu aroma.',
-              style: TextStyle(color: EssenzaColors.muted, letterSpacing: .4),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                letterSpacing: .4,
+              ),
             ),
           ],
         ),

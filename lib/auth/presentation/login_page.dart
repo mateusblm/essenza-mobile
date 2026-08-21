@@ -163,7 +163,9 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         child: Text(
                           _error!,
-                          style: const TextStyle(color: EssenzaColors.error),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                     FilledButton(
@@ -250,11 +252,11 @@ class _EssenzaMark extends StatelessWidget {
           fit: BoxFit.contain,
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'ESSENZA',
           style: TextStyle(
             fontFamily: 'serif',
-            color: EssenzaColors.burgundyDark,
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 29,
             letterSpacing: 5,
             fontWeight: FontWeight.w500,

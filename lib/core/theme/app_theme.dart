@@ -17,6 +17,10 @@ abstract final class EssenzaColors {
   static const deepOcean = burgundy;
   static const softBackground = background;
   static const warmGray = muted;
+  static const darkBackground = Color(0xFF171314);
+  static const darkSurface = Color(0xFF241C1D);
+  static const darkMuted = Color(0xFFC7B9B5);
+  static const darkBorder = Color(0xFF49393B);
 }
 
 abstract final class EssenzaTheme {
@@ -193,6 +197,80 @@ abstract final class EssenzaTheme {
         behavior: SnackBarBehavior.floating,
         backgroundColor: EssenzaColors.burgundyDark,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  static ThemeData dark() {
+    final base = light();
+    const scheme = ColorScheme.dark(
+      primary: Color(0xFFB9576A),
+      onPrimary: Colors.white,
+      secondary: EssenzaColors.gold,
+      onSecondary: EssenzaColors.ink,
+      surface: EssenzaColors.darkSurface,
+      onSurface: Color(0xFFF7F4EF),
+      error: EssenzaColors.error,
+      outline: EssenzaColors.darkBorder,
+    );
+    return base.copyWith(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: EssenzaColors.darkBackground,
+      textTheme: base.textTheme.apply(
+        bodyColor: const Color(0xFFF7F4EF),
+        displayColor: const Color(0xFFF7F4EF),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: EssenzaColors.darkBackground,
+        foregroundColor: Color(0xFFF7F4EF),
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+      ),
+      cardTheme: CardThemeData(
+        color: EssenzaColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: const BorderSide(color: EssenzaColors.darkBorder, width: .7),
+        ),
+      ),
+      inputDecorationTheme: base.inputDecorationTheme.copyWith(
+        fillColor: EssenzaColors.darkSurface,
+        hintStyle: const TextStyle(color: EssenzaColors.darkMuted),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: EssenzaColors.darkBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFB9576A), width: 1.5),
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        height: 72,
+        elevation: 0,
+        backgroundColor: EssenzaColors.darkSurface,
+        indicatorColor: const Color(0xFF3A292C),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected)
+                ? const Color(0xFFE08A98)
+                : EssenzaColors.darkMuted,
+            size: 23,
+          ),
+        ),
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(color: EssenzaColors.darkMuted, fontSize: 11),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: EssenzaColors.darkBorder,
+        thickness: .7,
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: Color(0xFFE08A98),
       ),
     );
   }
