@@ -16,6 +16,8 @@ class HomePage extends StatefulWidget {
   final DiaryRepository diaryRepository;
   final User? user;
   final Future<void> Function() onLogout;
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
 
   const HomePage({
     super.key,
@@ -23,6 +25,8 @@ class HomePage extends StatefulWidget {
     required this.diaryRepository,
     this.user,
     required this.onLogout,
+    required this.themeMode,
+    required this.onThemeModeChanged,
   });
 
   @override
@@ -55,6 +59,8 @@ class _HomePageState extends State<HomePage> {
           repository: widget.repository,
           user: widget.user,
           onLogout: widget.onLogout,
+          themeMode: widget.themeMode,
+          onThemeModeChanged: widget.onThemeModeChanged,
         ),
       },
       bottomNavigationBar: NavigationBar(
@@ -149,13 +155,13 @@ class _DashboardViewState extends State<_DashboardView> {
                     width: 44,
                     height: 44,
                     decoration: BoxDecoration(
-                      color: EssenzaColors.backgroundMuted,
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       shape: BoxShape.circle,
-                      border: Border.all(color: EssenzaColors.border),
+                      border: Border.all(color: Theme.of(context).colorScheme.outline),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.notifications_none,
-                      color: EssenzaColors.burgundy,
+                      color: Theme.of(context).colorScheme.primary,
                     ),
                   ),
                 ],
@@ -247,7 +253,7 @@ class _DnaCard extends StatelessWidget {
               topLabels.isEmpty ? 'Seu perfil está sendo analisado' : topLabels,
               style: TextStyle(
                 fontFamily: 'serif',
-                color: EssenzaColors.burgundyDark,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 20,
                 height: 1.15,
               ),
@@ -292,8 +298,8 @@ class _DnaCard extends StatelessWidget {
                         child: Text(
                           '${item.$2.round()}%',
                           textAlign: TextAlign.end,
-                          style: const TextStyle(
-                            color: EssenzaColors.muted,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontSize: 11,
                           ),
                         ),
@@ -308,7 +314,7 @@ class _DnaCard extends StatelessWidget {
                   ? 'Adicione perfumes para descobrir seu DNA olfativo.'
                   : 'Sua coleção possui maior presença em ${values.first.$1.toLowerCase()}.',
               style: TextStyle(
-                color: EssenzaColors.muted,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
                 height: 1.4,
               ),
@@ -396,7 +402,7 @@ class _CoverageCard extends StatelessWidget {
                 _coverageScore.toString(),
                 style: TextStyle(
                   fontFamily: 'serif',
-                  color: EssenzaColors.burgundy,
+                  color: Theme.of(context).colorScheme.primary,
                   fontSize: 36,
                 ),
               ),
@@ -422,8 +428,8 @@ class _CoverageCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: (e.percentage / 100).clamp(0, 1),
                         minHeight: 6,
-                        backgroundColor: EssenzaColors.backgroundMuted,
-                        color: EssenzaColors.burgundy,
+                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),
@@ -432,10 +438,10 @@ class _CoverageCard extends StatelessWidget {
             ),
           ),
           const Divider(height: 28),
-          const Text(
+          Text(
             'PRINCIPAL OPORTUNIDADE',
             style: TextStyle(
-              color: EssenzaColors.gold,
+              color: Theme.of(context).colorScheme.secondary,
               fontSize: 11,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w700,
@@ -491,9 +497,9 @@ class _RecommendationPreview extends StatelessWidget {
     width: 160,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: EssenzaColors.border),
+      border: Border.all(color: Theme.of(context).colorScheme.outline),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1257,16 +1263,16 @@ class _WishlistView extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: EssenzaColors.burgundyDark,
+            color: Theme.of(context).colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(26),
           ),
-          child: const Column(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'MELHOR PRÓXIMA COMPRA',
                 style: TextStyle(
-                  color: EssenzaColors.gold,
+                  color: Theme.of(context).colorScheme.secondary,
                   fontSize: 11,
                   letterSpacing: 1.3,
                   fontWeight: FontWeight.w700,
@@ -1277,14 +1283,17 @@ class _WishlistView extends StatelessWidget {
                 'Versace Pour Homme',
                 style: TextStyle(
                   fontFamily: 'serif',
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
                   fontSize: 25,
                 ),
               ),
               SizedBox(height: 7),
               Text(
                 'É o perfume da sua wishlist que mais aumenta a versatilidade da sua coleção.',
-                style: TextStyle(color: Colors.white70, height: 1.4),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: .7),
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -1306,12 +1315,12 @@ class _WishlistView extends StatelessWidget {
                       width: 70,
                       height: 84,
                       decoration: BoxDecoration(
-                        color: EssenzaColors.backgroundMuted,
+                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.water_drop_outlined,
-                        color: EssenzaColors.gold,
+                        color: Theme.of(context).colorScheme.secondary,
                         size: 34,
                       ),
                     ),
@@ -1322,9 +1331,9 @@ class _WishlistView extends StatelessWidget {
                         children: [
                           Text(
                             p.$2,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 11,
-                              color: EssenzaColors.muted,
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -1353,9 +1362,9 @@ class _WishlistView extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.favorite,
-                      color: EssenzaColors.burgundy,
+                      color: Theme.of(context).colorScheme.primary,
                       size: 21,
                     ),
                   ],
@@ -1378,13 +1387,16 @@ class _MiniMetric extends StatelessWidget {
     children: [
       Text(
         label,
-        style: const TextStyle(fontSize: 9, color: EssenzaColors.muted),
+        style: TextStyle(
+          fontSize: 9,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
       Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 15,
-          color: EssenzaColors.burgundy,
+          color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -1396,7 +1408,16 @@ class _ProfileView extends StatefulWidget {
   final CatalogRepository repository;
   final User? user;
   final Future<void> Function() onLogout;
-  const _ProfileView({required this.repository, this.user, required this.onLogout});
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onThemeModeChanged;
+
+  const _ProfileView({
+    required this.repository,
+    this.user,
+    required this.onLogout,
+    required this.themeMode,
+    required this.onThemeModeChanged,
+  });
 
   @override
   State<_ProfileView> createState() => _ProfileViewState();
@@ -1422,11 +1443,11 @@ class _ProfileViewState extends State<_ProfileView> {
           children: [
             CircleAvatar(
               radius: 34,
-              backgroundColor: EssenzaColors.backgroundMuted,
+              backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Icon(
                 Icons.person_outline,
                 size: 34,
-                color: EssenzaColors.burgundy,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ),
             SizedBox(width: 16),
@@ -1439,7 +1460,7 @@ class _ProfileViewState extends State<_ProfileView> {
                     style: TextStyle(
                       fontFamily: 'serif',
                       fontSize: 24,
-                      color: EssenzaColors.burgundyDark,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                   Text(widget.user?.email ?? 'Sua coleção pessoal'),
@@ -1452,9 +1473,9 @@ class _ProfileViewState extends State<_ProfileView> {
         Container(
           padding: const EdgeInsets.symmetric(vertical: 18),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: EssenzaColors.border),
+            border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -1474,6 +1495,11 @@ class _ProfileViewState extends State<_ProfileView> {
           ),
         ),
         const SizedBox(height: 18),
+        _ThemeModeTile(
+          themeMode: widget.themeMode,
+          onChanged: widget.onThemeModeChanged,
+        ),
+        const SizedBox(height: 6),
         ...const [
           (Icons.tune, 'Preferências olfativas'),
           (Icons.history_outlined, 'Diário de perfumes'),
@@ -1492,18 +1518,22 @@ class _ProfileViewState extends State<_ProfileView> {
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: EssenzaColors.backgroundMuted,
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(13),
               ),
-              child: Icon(item.$1, color: EssenzaColors.burgundy, size: 21),
+              child: Icon(
+                item.$1,
+                color: Theme.of(context).colorScheme.primary,
+                size: 21,
+              ),
             ),
             title: Text(
               item.$2,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            trailing: const Icon(
+            trailing: Icon(
               Icons.chevron_right,
-              color: EssenzaColors.muted,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ),
@@ -1517,6 +1547,53 @@ class _ProfileViewState extends State<_ProfileView> {
     ),
   );
 }
+
+class _ThemeModeTile extends StatelessWidget {
+  final ThemeMode themeMode;
+  final ValueChanged<ThemeMode> onChanged;
+
+  const _ThemeModeTile({required this.themeMode, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+    contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+    leading: Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: Icon(
+        Icons.brightness_6_outlined,
+        color: Theme.of(context).colorScheme.primary,
+        size: 21,
+      ),
+    ),
+    title: const Text(
+      'Tema',
+      style: TextStyle(fontWeight: FontWeight.w600),
+    ),
+    subtitle: Text(_themeModeLabel(themeMode)),
+    trailing: PopupMenuButton<ThemeMode>(
+      onSelected: onChanged,
+      itemBuilder: (context) => ThemeMode.values
+          .map(
+            (mode) => PopupMenuItem(
+              value: mode,
+              child: Text(_themeModeLabel(mode)),
+            ),
+          )
+          .toList(),
+    ),
+  );
+}
+
+String _themeModeLabel(ThemeMode mode) => switch (mode) {
+  ThemeMode.system => 'Preferência do sistema',
+  ThemeMode.light => 'Claro',
+  ThemeMode.dark => 'Escuro',
+};
 
 class _ProfileIdentityCard extends StatelessWidget {
   final CollectionInsights? insights;
@@ -1543,9 +1620,11 @@ class _ProfileIdentityCard extends StatelessWidget {
             if (loading)
               const LinearProgressIndicator()
             else if (dominant == null)
-              const Text(
+              Text(
                 'Adicione perfumes para descobrir sua identidade.',
-                style: TextStyle(color: EssenzaColors.muted),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               )
             else ...[
               Text(
@@ -1553,14 +1632,14 @@ class _ProfileIdentityCard extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'serif',
                   fontSize: 21,
-                  color: EssenzaColors.burgundyDark,
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 _identityDescription(dominant.label),
-                style: const TextStyle(
-                  color: EssenzaColors.muted,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 13,
                 ),
               ),
@@ -1614,7 +1693,10 @@ class _IdentityDetail extends StatelessWidget {
     padding: const EdgeInsets.only(bottom: 6),
     child: RichText(
       text: TextSpan(
-        style: const TextStyle(color: EssenzaColors.muted, fontSize: 13),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 13,
+        ),
         children: [
           TextSpan(
             text: '$label: ',
@@ -1635,15 +1717,18 @@ class _ProfileStat extends StatelessWidget {
     children: [
       Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'serif',
           fontSize: 25,
-          color: EssenzaColors.burgundy,
+          color: Theme.of(context).colorScheme.primary,
         ),
       ),
       Text(
         label,
-        style: const TextStyle(fontSize: 11, color: EssenzaColors.muted),
+        style: TextStyle(
+          fontSize: 11,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
     ],
   );
