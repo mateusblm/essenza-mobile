@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import '../catalog/data/catalog_repository.dart';
 import '../catalog/models/perfume.dart';
 import '../catalog/models/collection_insights.dart';
+import '../catalog/models/recommendation.dart';
+import '../catalog/models/profile_stats.dart';
 import '../catalog/presentation/catalog_labels.dart';
 import '../core/theme/app_theme.dart';
 import '../diary/data/diary_repository.dart';
@@ -60,7 +62,7 @@ class _HomePageState extends State<HomePage> {
           repository: widget.repository,
           diaryRepository: widget.diaryRepository,
         ),
-        3 => const _WishlistView(),
+        3 => _WishlistView(repository: widget.repository),
         _ => _ProfileView(
           repository: widget.repository,
           user: widget.user,
@@ -118,10 +120,12 @@ class _DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<_DashboardView> {
   late Future<CollectionInsights> _future;
+  late Future<List<PerfumeRecommendation>> _recommendations;
   @override
   void initState() {
     super.initState();
     _future = widget.repository.collectionInsights();
+    _recommendations = widget.repository.recommendations();
   }
 
   @override
@@ -135,8 +139,12 @@ class _DashboardViewState extends State<_DashboardView> {
         return RefreshIndicator(
           onRefresh: () async {
             final next = widget.repository.collectionInsights();
-            setState(() => _future = next);
-            await next;
+            final nextRecommendations = widget.repository.recommendations();
+            setState(() {
+              _future = next;
+              _recommendations = nextRecommendations;
+            });
+            await Future.wait([next, nextRecommendations]);
           },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
@@ -183,24 +191,30 @@ class _DashboardViewState extends State<_DashboardView> {
                 onTap: widget.onExplore,
               ),
               const SizedBox(height: 14),
-              SizedBox(
-                height: 220,
-                child: insights == null || insights.recommendations.isEmpty
-                    ? const _EmptyState(
-                        icon: Icons.auto_awesome_outlined,
-                        title: 'Ainda sem recomendações',
-                        message: 'Adicione perfumes para receber sugestões personalizadas.',
-                      )
-                    : ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: insights.recommendations.length,
-                        separatorBuilder: (_, _) => const SizedBox(width: 12),
-                        itemBuilder: (_, index) => _RecommendationPreview(
-                          name: insights.recommendations[index],
-                          tag: 'Recomendado para você',
-                          icon: Icons.water_drop_outlined,
-                        ),
-                      ),
+              FutureBuilder<List<PerfumeRecommendation>>(
+                future: _recommendations,
+                builder: (context, recommendationSnapshot) {
+                  final recommendations = recommendationSnapshot.data ?? const <PerfumeRecommendation>[];
+                  return SizedBox(
+                    height: 220,
+                    child: recommendationSnapshot.connectionState == ConnectionState.waiting
+                        ? const Center(child: CircularProgressIndicator())
+                        : recommendations.isEmpty
+                            ? const _EmptyState(
+                                icon: Icons.auto_awesome_outlined,
+                                title: 'Ainda sem recomendações',
+                                message: 'Adicione perfumes para receber sugestões personalizadas.',
+                              )
+                            : ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: recommendations.length,
+                                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                                itemBuilder: (_, index) => _RecommendationPreview(
+                                  recommendation: recommendations[index],
+                                ),
+                              ),
+                  );
+                },
               ),
             ],
           ),
@@ -480,13 +494,8 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _RecommendationPreview extends StatelessWidget {
-  final String name, tag;
-  final IconData icon;
-  const _RecommendationPreview({
-    required this.name,
-    required this.tag,
-    required this.icon,
-  });
+  final PerfumeRecommendation recommendation;
+  const _RecommendationPreview({required this.recommendation});
   @override
   Widget build(BuildContext context) => Container(
     width: 160,
@@ -499,17 +508,15 @@ class _RecommendationPreview extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Center(child: Icon(icon, color: EssenzaColors.gold, size: 46)),
-        ),
+        Expanded(child: Center(child: _PerfumeImage(url: recommendation.perfume.imageUrl, size: 82))),
         Text(
-          name,
+          recommendation.perfume.name,
           maxLines: 2,
           style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 5),
         Text(
-          tag,
+          recommendation.reason,
           style: const TextStyle(
             color: EssenzaColors.success,
             fontSize: 12,
@@ -1069,6 +1076,7 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
   late Future<Perfume> _future;
   bool _saving = false;
   bool _inCollection = false;
+  bool _inWishlist = false;
 
   @override
   void initState() {
@@ -1080,11 +1088,13 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
   Future<void> _loadCollectionState() async {
     try {
       final collection = await widget.repository.collection();
+      final wishlist = await widget.repository.wishlist();
       if (mounted) {
         setState(
-          () => _inCollection = collection.any(
-            (item) => item.externalId == widget.perfume.externalId,
-          ),
+          () {
+            _inCollection = collection.any((item) => item.externalId == widget.perfume.externalId);
+            _inWishlist = wishlist.any((item) => item.externalId == widget.perfume.externalId);
+          },
         );
       }
     } catch (_) {
@@ -1108,6 +1118,22 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
           const SnackBar(content: Text('Não foi possível adicionar.')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _toggleWishlist(Perfume perfume) async {
+    setState(() => _saving = true);
+    try {
+      if (_inWishlist) {
+        await widget.repository.removeFromWishlist(perfume.externalId);
+      } else {
+        await widget.repository.addToWishlist(perfume.externalId);
+      }
+      if (mounted) setState(() => _inWishlist = !_inWishlist);
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível atualizar a wishlist.')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1208,6 +1234,12 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
               ),
               const SizedBox(height: 12),
               OutlinedButton.icon(
+                onPressed: _saving ? null : () => _toggleWishlist(perfume),
+                icon: Icon(_inWishlist ? Icons.favorite : Icons.favorite_border),
+                label: Text(_inWishlist ? 'Na wishlist' : 'Adicionar à wishlist'),
+              ),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(
@@ -1241,161 +1273,75 @@ class _InfoChip extends StatelessWidget {
   );
 }
 
-class _WishlistView extends StatelessWidget {
-  const _WishlistView();
+class _WishlistView extends StatefulWidget {
+  final CatalogRepository repository;
+  const _WishlistView({required this.repository});
   @override
-  Widget build(BuildContext context) => SafeArea(
-    child: ListView(
-      padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-      children: [
-        Text(
-          'Quero experimentar',
-          style: Theme.of(context).textTheme.headlineLarge,
-        ),
-        const SizedBox(height: 6),
-        const Text('Perfumes que podem ser sua próxima assinatura.'),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(26),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'MELHOR PRÓXIMA COMPRA',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.secondary,
-                  fontSize: 11,
-                  letterSpacing: 1.3,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                'Versace Pour Homme',
-                style: TextStyle(
-                  fontFamily: 'serif',
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontSize: 25,
-                ),
-              ),
-              SizedBox(height: 7),
-              Text(
-                'É o perfume da sua wishlist que mais aumenta a versatilidade da sua coleção.',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: .7),
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        ...const [
-          ('Acqua di Giò', 'Giorgio Armani', 94, 72),
-          ('Dylan Blue', 'Versace', 86, 81),
-          ('Bleu de Chanel', 'Chanel', 91, 67),
-        ].map(
-          (p) => Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 70,
-                      height: 84,
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.water_drop_outlined,
-                        color: Theme.of(context).colorScheme.secondary,
-                        size: 34,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            p.$2,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            p.$1,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _MiniMetric(
-                                  label: 'Compatibilidade',
-                                  value: '${p.$3}%',
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: _MiniMetric(
-                                  label: 'Valor coleção',
-                                  value: '${p.$4}%',
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.favorite,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 21,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
+  State<_WishlistView> createState() => _WishlistViewState();
 }
 
-class _MiniMetric extends StatelessWidget {
-  final String label, value;
-  const _MiniMetric({required this.label, required this.value});
+class _WishlistViewState extends State<_WishlistView> {
+  late Future<List<Perfume>> _future;
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: 9,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-      Text(
-        value,
-        style: TextStyle(
-          fontSize: 15,
-          color: Theme.of(context).colorScheme.primary,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    ],
+  void initState() {
+    super.initState();
+    _future = widget.repository.wishlist();
+  }
+
+  Future<void> _remove(Perfume perfume) async {
+    try {
+      await widget.repository.removeFromWishlist(perfume.externalId);
+      if (mounted) setState(() => _future = widget.repository.wishlist());
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Não foi possível remover da wishlist.')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: FutureBuilder<List<Perfume>>(
+      future: _future,
+      builder: (context, snapshot) {
+        final perfumes = snapshot.data ?? const <Perfume>[];
+        return RefreshIndicator(
+          onRefresh: () async {
+            final next = widget.repository.wishlist();
+            setState(() => _future = next);
+            await next;
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+            children: [
+              Text('Quero experimentar', style: Theme.of(context).textTheme.headlineLarge),
+              const SizedBox(height: 6),
+              const Text('Perfumes que podem ser sua próxima assinatura.'),
+              const SizedBox(height: 24),
+              if (snapshot.connectionState == ConnectionState.waiting)
+                const Center(child: CircularProgressIndicator())
+              else if (perfumes.isEmpty)
+                const _EmptyState(
+                  icon: Icons.favorite_border,
+                  title: 'Sua wishlist está vazia',
+                  message: 'Salve perfumes que você quer conhecer para encontrá-los depois.',
+                )
+              else ...perfumes.map((perfume) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: PerfumeTile(
+                  perfume: perfume,
+                  trailing: IconButton(
+                    tooltip: 'Remover da wishlist',
+                    onPressed: () => _remove(perfume),
+                    icon: Icon(Icons.favorite, color: Theme.of(context).colorScheme.primary),
+                  ),
+                ),
+              )),
+            ],
+          ),
+        );
+      },
+    ),
   );
 }
 
@@ -1424,12 +1370,14 @@ class _ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<_ProfileView> {
   late Future<CollectionInsights> _insights;
+  late Future<ProfileStats> _stats;
   late Future<Uint8List?> _avatar;
 
   @override
   void initState() {
     super.initState();
     _insights = widget.repository.collectionInsights();
+    _stats = widget.repository.profileStats();
     _avatar = widget.loadAvatar();
   }
 
@@ -1522,13 +1470,19 @@ class _ProfileViewState extends State<_ProfileView> {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(color: Theme.of(context).colorScheme.outline),
           ),
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _ProfileStat('17', 'perfumes'),
-              _ProfileStat('8', 'favoritos'),
-              _ProfileStat('13', 'wishlist'),
-            ],
+          child: FutureBuilder<ProfileStats>(
+            future: _stats,
+            builder: (context, snapshot) {
+              final stats = snapshot.data;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _ProfileStat('${stats?.perfumeCount ?? 0}', 'perfumes'),
+                  _ProfileStat('${stats?.favoritesCount ?? 0}', 'favoritos'),
+                  _ProfileStat('${stats?.wishlistCount ?? 0}', 'wishlist'),
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: 22),
