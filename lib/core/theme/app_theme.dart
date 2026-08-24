@@ -248,6 +248,16 @@ abstract final class EssenzaTheme {
           borderSide: const BorderSide(color: Color(0xFFB9576A), width: 1.5),
         ),
       ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFFE08A98),
+          minimumSize: const Size.fromHeight(54),
+          side: const BorderSide(color: EssenzaColors.darkBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
       navigationBarTheme: NavigationBarThemeData(
         height: 72,
         elevation: 0,
