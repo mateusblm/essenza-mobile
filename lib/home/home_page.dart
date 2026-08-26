@@ -166,6 +166,13 @@ class _DashboardViewState extends State<_DashboardView> {
                 '${insights?.perfumeCount ?? 0} perfumes · uma assinatura só sua',
               ),
               const SizedBox(height: 24),
+              _DailyPick(
+                recommendation: insights?.recommendations.isNotEmpty == true
+                    ? insights!.recommendations.first
+                    : null,
+                onExplore: widget.onExplore,
+              ),
+              const SizedBox(height: 18),
               _DnaCard(
                 profile: profile,
                 loading: snapshot.connectionState == ConnectionState.waiting,
@@ -210,6 +217,58 @@ class _DashboardViewState extends State<_DashboardView> {
   );
 }
 
+class _DailyPick extends StatelessWidget {
+  final String? recommendation;
+  final VoidCallback onExplore;
+
+  const _DailyPick({required this.recommendation, required this.onExplore});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final title = recommendation?.trim().isNotEmpty == true
+        ? recommendation!.trim()
+        : 'Descubra sua próxima assinatura';
+    return InkWell(
+      onTap: onExplore,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          children: [
+            Icon(Icons.local_florist_outlined, color: scheme.primary, size: 25),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ESCOLHA DO DIA',
+                    style: TextStyle(
+                      color: scheme.primary,
+                      fontSize: 10,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, color: scheme.onSurfaceVariant, size: 15),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DnaCard extends StatelessWidget {
   final List<CollectionInsightScore> profile;
   final bool loading;
@@ -247,7 +306,7 @@ class _DnaCard extends StatelessWidget {
             Text(
               topLabels.isEmpty ? 'Seu perfil está sendo analisado' : topLabels,
               style: TextStyle(
-                fontFamily: 'serif',
+                fontFamily: 'Open Sans',
                 color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 20,
                 height: 1.15,
@@ -396,7 +455,7 @@ class _CoverageCard extends StatelessWidget {
               Text(
                 _coverageScore.toString(),
                 style: TextStyle(
-                  fontFamily: 'serif',
+                  fontFamily: 'Open Sans',
                   color: Theme.of(context).colorScheme.primary,
                   fontSize: 36,
                 ),
@@ -488,37 +547,51 @@ class _RecommendationPreview extends StatelessWidget {
     required this.icon,
   });
   @override
-  Widget build(BuildContext context) => Container(
-    width: 160,
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(color: Theme.of(context).colorScheme.outline),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Center(child: Icon(icon, color: EssenzaColors.gold, size: 46)),
-        ),
-        Text(
-          name,
-          maxLines: 2,
-          style: const TextStyle(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 5),
-        Text(
-          tag,
-          style: const TextStyle(
-            color: EssenzaColors.success,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 176,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: scheme.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: scheme.secondary, size: 48),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 12),
+          Text(
+            name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            tag,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: scheme.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class SearchView extends StatefulWidget {
@@ -620,9 +693,9 @@ class _SearchViewState extends State<SearchView> {
                       .map(
                         (perfume) => ListTile(
                           dense: true,
-                          leading: const Icon(
+                          leading: Icon(
                             Icons.history,
-                            color: EssenzaColors.deepOcean,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                           title: Text(perfume.name),
                           subtitle: Text(
@@ -764,6 +837,23 @@ class _CollectionViewState extends State<CollectionView> {
           child: ListView(
             padding: const EdgeInsets.only(top: 12, bottom: 20),
             children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Minha coleção',
+                      style: Theme.of(context).textTheme.headlineLarge,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${items.length} perfumes que contam sua história',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
               _CollectionProfile(insights: data!.insights),
               const SizedBox(height: 12),
               ...items.map(
@@ -853,7 +943,10 @@ class _CollectionProfile extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.insights, color: EssenzaColors.deepOcean),
+                Icon(
+                  Icons.insights,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Seu perfil olfativo',
@@ -1030,11 +1123,21 @@ class PerfumeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Card(
       child: ListTile(
         onTap: onTap,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: _PerfumeImage(url: perfume.imageUrl, size: 56),
+        leading: Container(
+          width: 58,
+          height: 64,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: _PerfumeImage(url: perfume.imageUrl, size: 50),
+        ),
         title: Text(
           perfume.name,
           style: const TextStyle(fontWeight: FontWeight.w700),
@@ -1128,6 +1231,7 @@ class _PerfumeDetailsPageState extends State<PerfumeDetailsPage> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
             children: [
               Card(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Center(
@@ -1236,7 +1340,11 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Chip(
-    avatar: const Icon(Icons.circle, size: 10, color: EssenzaColors.deepOcean),
+    avatar: Icon(
+      Icons.circle,
+      size: 10,
+      color: Theme.of(context).colorScheme.primary,
+    ),
     label: Text(text),
   );
 }
@@ -1277,7 +1385,7 @@ class _WishlistView extends StatelessWidget {
               Text(
                 'Versace Pour Homme',
                 style: TextStyle(
-                  fontFamily: 'serif',
+                  fontFamily: 'Open Sans',
                   color: Theme.of(context).colorScheme.onPrimaryContainer,
                   fontSize: 25,
                 ),
@@ -1503,7 +1611,7 @@ class _ProfileViewState extends State<_ProfileView> {
                   Text(
                     widget.user?.name ?? 'Seu perfil',
                     style: TextStyle(
-                      fontFamily: 'serif',
+                      fontFamily: 'Open Sans',
                       fontSize: 24,
                       color: Theme.of(context).colorScheme.onSurface,
                     ),
@@ -1646,7 +1754,7 @@ class _ProfileIdentityCard extends StatelessWidget {
               Text(
                 _identityTitle(dominant.label),
                 style: TextStyle(
-                  fontFamily: 'serif',
+                  fontFamily: 'Open Sans',
                   fontSize: 21,
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
@@ -1734,7 +1842,7 @@ class _ProfileStat extends StatelessWidget {
       Text(
         value,
         style: TextStyle(
-          fontFamily: 'serif',
+          fontFamily: 'Open Sans',
           fontSize: 25,
           color: Theme.of(context).colorScheme.primary,
         ),
