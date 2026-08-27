@@ -324,7 +324,7 @@ abstract final class EssenzaTheme {
         height: 72,
         elevation: 0,
         backgroundColor: EssenzaColors.darkSurface,
-        indicatorColor: const Color(0xFF3A292C),
+        indicatorColor: const Color(0xFF30443B),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected)

@@ -1,6 +1,8 @@
 import '../../core/network/api_client.dart';
 import '../models/perfume.dart';
 import '../models/collection_insights.dart';
+import '../models/recommendation.dart';
+import '../models/profile_stats.dart';
 
 class CatalogRepository {
   final ApiClient client;
@@ -14,6 +16,17 @@ class CatalogRepository {
     return response.map((e) => Perfume.fromJson(e as Map<String, dynamic>)).toList();
   }
   Future<CollectionInsights> collectionInsights() async => CollectionInsights.fromJson(await client.get('/collection/insights'));
+  Future<List<PerfumeRecommendation>> recommendations({int limit = 5}) async {
+    final response = await client.getJson('/collection/recommendations?limit=$limit') as List<dynamic>;
+    return response.map((e) => PerfumeRecommendation.fromJson(e as Map<String, dynamic>)).toList();
+  }
+  Future<ProfileStats> profileStats() async => ProfileStats.fromJson(await client.get('/profile/stats'));
+  Future<List<Perfume>> wishlist() async {
+    final response = await client.getJson('/wishlist') as List<dynamic>;
+    return response.map((e) => Perfume.fromJson(e as Map<String, dynamic>)).toList();
+  }
+  Future<Perfume> addToWishlist(String externalId) async => Perfume.fromJson(await client.post('/wishlist/${Uri.encodeComponent(externalId)}', {}));
+  Future<void> removeFromWishlist(String externalId) => client.delete('/wishlist/${Uri.encodeComponent(externalId)}');
   Future<Perfume> addToCollection(String externalId) async => Perfume.fromJson(await client.post('/collection/${Uri.encodeComponent(externalId)}', {}));
   Future<void> removeFromCollection(String externalId) => client.delete('/collection/${Uri.encodeComponent(externalId)}');
 }

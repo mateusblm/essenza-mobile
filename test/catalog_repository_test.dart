@@ -63,4 +63,24 @@ void main() {
     expect(result.occasions, ['Noite']);
     verify(() => client.get(Uri.parse('http://test/collection/insights'), headers: any(named: 'headers'))).called(1);
   });
+
+  test('loads wishlist, profile stats and local recommendations', () async {
+    final client = CatalogMockHttpClient();
+    when(() => client.get(any(), headers: any(named: 'headers'))).thenAnswer((invocation) async {
+      final uri = invocation.positionalArguments.first as Uri;
+      if (uri.path.endsWith('/wishlist')) {
+        return http.Response(jsonEncode([{'externalId': 'p1', 'name': 'Sauvage', 'brand': 'Dior'}]), 200);
+      }
+      if (uri.path.endsWith('/profile/stats')) {
+        return http.Response(jsonEncode({'perfumeCount': 2, 'favoritesCount': 2, 'wishlistCount': 1, 'diaryEntryCount': 3}), 200);
+      }
+      return http.Response(jsonEncode([{'externalId': 'p2', 'name': 'Eros', 'brand': 'Versace', 'score': 82.5, 'reason': 'Combina com doce'}]), 200);
+    });
+    final repository = CatalogRepository(ApiClient(httpClient: client, tokenStore: CatalogMemoryStore(), baseUrl: 'http://test'));
+
+    expect((await repository.wishlist()).single.name, 'Sauvage');
+    expect((await repository.profileStats()).wishlistCount, 1);
+    expect((await repository.recommendations()).single.perfume.name, 'Eros');
+    verify(() => client.get(Uri.parse('http://test/collection/recommendations?limit=5'), headers: any(named: 'headers'))).called(1);
+  });
 }

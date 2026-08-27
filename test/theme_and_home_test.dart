@@ -6,6 +6,8 @@ import 'package:mocktail/mocktail.dart';
 
 import 'package:essenza_mobile/catalog/data/catalog_repository.dart';
 import 'package:essenza_mobile/catalog/models/collection_insights.dart';
+import 'package:essenza_mobile/catalog/models/perfume.dart';
+import 'package:essenza_mobile/catalog/models/recommendation.dart';
 import 'package:essenza_mobile/core/theme/app_theme.dart';
 import 'package:essenza_mobile/diary/data/diary_repository.dart';
 import 'package:essenza_mobile/home/home_page.dart';
@@ -36,6 +38,15 @@ void main() {
         occasions: ['Noite'],
         recommendations: ['Terre d’Hermès'],
       ),
+    );
+    when(() => catalog.recommendations()).thenAnswer(
+      (_) async => const [
+        PerfumeRecommendation(
+          perfume: Perfume(externalId: 'p1', name: 'Terre d’Hermès'),
+          score: .9,
+          reason: 'Combina com sua coleção.',
+        ),
+      ],
     );
 
     Future<void> upload(
