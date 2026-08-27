@@ -255,7 +255,7 @@ class _EssenzaMark extends StatelessWidget {
         Text(
           'ESSENZA',
           style: TextStyle(
-            fontFamily: 'serif',
+            fontFamily: 'Open Sans',
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: 29,
             letterSpacing: 5,

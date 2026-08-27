@@ -115,7 +115,7 @@ class _SplashView extends StatelessWidget {
             Text(
               'ESSENZA',
               style: TextStyle(
-                fontFamily: 'serif',
+                fontFamily: 'Open Sans',
                 fontSize: 32,
                 letterSpacing: 6,
                 color: Theme.of(context).colorScheme.onSurface,
